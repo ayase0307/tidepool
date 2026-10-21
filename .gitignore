@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Local data: accounts, browser profiles, database, output
+secrets/
+data/
+output/
+logs/
+
+# Tooling artefacts
+.taste-skill/
+*.bak
+*.bak2
+screenshots/
+node_modules/
+
+# Third-party reference clone (not part of this project)
+fpbrowser2api/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+PROGRESS.md

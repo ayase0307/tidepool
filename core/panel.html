@@ -1,0 +1,2101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidepool 控制台</title>
+<link rel="icon" href="/brand/logo-256.png">
+<style>
+/* AI-Pool 控制台
+   方向：tasteskill v2 app sheet「data-terminal」(seed 1390768860, dark)
+   風格要點：每個選取狀態都是一條 1px 強調線，數字用等寬字並在文字裡帶正負號，顏色只給資料與狀態。 */
+@font-face{font-family:"Public Sans";src:url("/fonts/PublicSans-latin.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Public Sans";src:url("/fonts/PublicSans-latin-ext.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C6-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"JetBrains Mono";src:url("/fonts/JetBrainsMono-latin.woff2") format("woff2");font-weight:100 800;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"JetBrains Mono";src:url("/fonts/JetBrainsMono-latin-ext.woff2") format("woff2");font-weight:100 800;font-style:normal;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C6-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+:root{
+  --ground:#171719; --surface:#131217; --raised:#212023; --active:#212023;
+  --border:#222224; --rule:#1b1a1f; --control:#3a3a3e;
+  --text:#ffffff; --muted:#8a8c92; --faint:#9b9da3;
+  --primary:#ffffff; --primary-ink:#000000;
+  --accent:#45b396;                      /* 號池自己的色：ChatGPT 的青，只有 1px 強調線與主資料用 */
+  --positive:#45b396; --negative:#e5566f; --warning:#d9a441;
+  --pill-positive-bg:#122a26; --pill-positive-ink:#5fc8ad;
+  --pill-negative-bg:#2c1a20; --pill-negative-ink:#e5566f;
+  --pill-warning-bg:#2a2416; --pill-warning-ink:#d9a441;
+  --pill-neutral-bg:#212023; --pill-neutral-ink:#bdbdc0;
+  --chart-1:#45b396; --chart-muted:#4a4a4d; --grid:#2b2b2b; --chart-span:.12;
+  --shadow:0 12px 28px rgba(0,0,0,.2);
+  --radius-card:6px; --radius-control:999px; --radius-chip:4px;
+  --gap:24px; --card-pad:20px; --pad:32px; --section-gap:32px;
+  --control-height:34px; --row-height:42px; --sidebar-width:216px;
+  --fs-title:26px; --fs-section:20px; --fs-kpi:20px; --fs-body:13px; --fs-small:12px;
+  --font:"Public Sans","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--text);font:400 var(--fs-body)/20px var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,figure{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+img,svg{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+[hidden]{display:none !important}
+
+/* ---------- 外框：側欄 + 畫布 ---------- */
+.app{display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);min-height:100svh}
+.sidebar{position:sticky;top:0;height:100svh;display:flex;flex-direction:column;padding:22px 12px 18px;border-right:1px solid var(--rule)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 20px}
+.mark{width:32px;height:32px;flex:none;border-radius:8px;overflow:hidden;display:block}
+.mark img{width:100%;height:100%;object-fit:cover;display:block}
+.brand-name{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.brand-scope{display:block;margin-top:3px;font-size:var(--fs-small);color:var(--muted);font-variant-numeric:tabular-nums}
+.nav{display:grid;gap:2px}
+/* 手動台的帳號列：每個帳號一顆燈，綠＝可用、紅＝不可用 */
+.embed-accounts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--gap)}
+.acct{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface);color:var(--muted);font-size:var(--fs-small);font-family:var(--font-mono);cursor:pointer;transition:color .15s ease,border-color .15s ease,background-color .15s ease}
+.acct:hover{color:var(--text);border-color:var(--control)}
+.acct .light{width:7px;height:7px;border-radius:50%;background:var(--negative);flex:none;transition:background-color .2s ease,box-shadow .2s ease}
+.acct .light.ok{background:var(--positive);box-shadow:0 0 0 3px rgba(69,179,150,.14)}
+.acct[aria-current="true"]{color:var(--text);border-color:var(--accent)}
+.acct[aria-current="true"] .light.ok{animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 3px rgba(69,179,150,.14)}50%{box-shadow:0 0 0 6px rgba(69,179,150,0)}}
+
+/* 狀態 pill：忙碌時呼吸 */
+.pill.busy{animation:breathePill 2.2s ease-in-out infinite}
+@keyframes breathePill{0%,100%{opacity:1}50%{opacity:.62}}
+
+/* 數值變動時閃一下（回饋，不是入場動畫） */
+.kpi-value.flash{animation:flash .5s var(--ease-out)}
+@keyframes flash{0%{color:var(--accent)}100%{color:inherit}}
+
+/* 圖庫縮圖：hover 微微放大 */
+.shot img{transition:transform .35s var(--ease-out),opacity .15s ease}
+.shot:hover img{transform:scale(1.015)}
+.shot{transition:transform .35s var(--ease-out)}
+.shot:hover{transform:translateY(-2px)}
+
+/* 燈箱淡入 */
+.lightbox{animation:fadeIn .18s var(--ease-out)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* 帳號匯入的格式說明 */
+.import-hint summary{cursor:pointer;color:var(--text);font-weight:500;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.import-hint summary::-webkit-details-marker{display:none}
+.import-hint summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .25s var(--ease-out)}
+.import-hint[open] summary::before{transform:rotate(45deg)}
+.import-hint .body{margin:10px 0 0;animation:viewIn .24s var(--ease-out)}
+.import-hint{margin:0 0 var(--gap);padding:12px 16px;border:1px solid var(--rule);border-radius:var(--radius-card);background:var(--raised);color:var(--muted);font-size:var(--fs-small);line-height:1.7}
+.import-hint code{font-family:var(--font-mono);color:var(--text);font-size:12px}
+.import-hint b{color:var(--text);font-weight:500}
+.row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--gap)}
+
+/* ---------- 彈出視窗 ---------- */
+.modal{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:36px;background:rgba(8,8,9,.8)}
+.modal-box{width:100%;max-width:900px;max-height:86vh;overflow:auto;background:var(--surface);border-radius:10px;padding:24px}
+.modal-box.lib{max-width:1080px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.modal-head h2{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.modal-foot{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--rule)}
+.set-group{border-top:1px solid var(--rule);padding-top:14px;margin-top:16px}
+.set-group:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.set-group h3{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:10px}
+.set-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.set-row .grow{flex:1 1 190px;min-width:0}
+.set-note{font-size:12px;color:var(--faint);line-height:1.6;margin-top:8px}
+.sub-row{display:flex;align-items:center;gap:8px;padding:7px 0;flex-wrap:wrap}
+.sub-row .nm{font-size:13px;color:var(--text);flex:1 1 auto}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--pill-neutral-bg);color:var(--pill-neutral-ink)}
+.badge.ok{background:var(--pill-positive-bg);color:var(--pill-positive-ink)}
+.badge.bad{background:var(--pill-negative-bg);color:var(--pill-negative-ink)}
+.lib-tabs{display:flex;gap:6px;align-items:center;margin-bottom:14px}
+.lib-tab{height:30px;padding:0 12px;border:1px solid var(--border);border-radius:999px;background:none;color:var(--muted);font-size:var(--fs-small);cursor:pointer;transition:color .15s ease,border-color .15s ease}
+.lib-tab.is-on{color:var(--text);border-color:var(--accent)}
+.lib-cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.lib-case{display:grid;gap:6px;padding:0;border:0;background:none;text-align:left;cursor:pointer}
+.lib-case img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius-chip);background:var(--raised);display:block}
+.lib-case .lc{font-size:var(--fs-small);color:var(--text);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lib-frame{width:100%;height:64vh;border:1px solid var(--rule);border-radius:var(--radius-chip);background:#fff}
+
+/* ---------- 模型商卡片 ---------- */
+.prov-list{display:grid;gap:12px}
+.prov-card{border:1px solid var(--border);border-radius:8px;padding:14px 16px;background:var(--ground);transition:border-color .2s ease}
+.prov-card:hover{border-color:var(--control)}
+.prov-card.is-active,.prov-card.is-active:hover{border-color:var(--accent)}
+.prov-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.prov-head .nm{font-size:14px;font-weight:500;flex:1 1 auto}
+.prov-head select{height:28px;padding:0 26px 0 9px;font-size:var(--fs-small);background:var(--surface);border:1px solid var(--control);border-radius:var(--radius-chip);color:var(--text)}
+.prov-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.prov-row .control{height:30px;flex:1 1 170px;min-width:0}
+.prov-row input.control{background-image:none;padding-right:9px}
+.prov-card.is-off{opacity:.55}
+.modal-box.agent{display:flex;flex-direction:column;overflow:hidden;max-width:860px}
+.modal-box.agent .prov-list{overflow:auto;min-height:0;margin:0 -8px;padding:2px 8px}
+.modal-box.agent .modal-foot{margin-top:14px;flex:none}
+.prov-row2{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.prov-row2 .nm{font-size:14px;font-weight:500;flex:1 1 130px;min-width:0}
+.prov-row2 select.control{flex:1 1 180px;max-width:260px;min-width:0;height:30px}
+.prov-card.compact{padding:11px 16px}
+.prov-off{display:grid;gap:6px;padding:12px 16px;border:1px dashed var(--control);border-radius:8px}
+.prov-off .it{display:flex;align-items:center;gap:10px;font-size:var(--fs-small);color:var(--muted);flex-wrap:wrap}
+.prov-off code{font-family:var(--font-mono);color:var(--text)}
+.head-acts{display:flex;align-items:center;gap:8px}
+.x-btn{width:26px;height:26px;flex:none;display:inline-grid;place-items:center;border:1px solid transparent;border-radius:var(--radius-chip);background:none;color:var(--faint);cursor:pointer;font-size:12px;transition:color .15s ease,background-color .15s ease,border-color .15s ease}
+.x-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.x-btn:hover{color:var(--negative);background:var(--pill-negative-bg)}
+.x-btn.armed{width:auto;padding:0 9px;color:var(--negative);border-color:var(--negative);background:var(--pill-negative-bg);animation:pop .25s var(--ease-out)}
+.prov-foot{display:grid;gap:10px;margin-top:12px}
+.prov-foot .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.prov-foot .control{height:30px;flex:1 1 150px;min-width:0}
+.prov-foot input.control{background-image:none;padding-right:9px}
+.restore a{color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;margin-right:10px}
+.restore a:hover{color:var(--text)}
+.prov-pick{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer}
+.prov-pick input{appearance:none;width:14px;height:14px;margin:0;border:1px solid var(--control);border-radius:50%;background:transparent;cursor:pointer;display:grid;place-items:center;transition:border-color .15s ease}
+.prov-pick input::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);transform:scale(0);transition:transform .2s var(--ease-out)}
+.prov-pick input:checked{border-color:var(--accent)}
+.prov-pick input:checked::after{transform:scale(1)}
+.prov-pick input:disabled{opacity:.35;cursor:not-allowed}
+.prov-row .meta,.prov-row2 .meta{white-space:nowrap}
+
+/* 分頁：選取狀態是一條會滑動的 1px 強調線（跟側欄同一個語言） */
+.prov-tabs{position:relative;display:flex;gap:22px;margin-bottom:14px;border-bottom:1px solid var(--rule)}
+.prov-tab{height:36px;padding:0 2px;border:0;background:none;color:var(--muted);font-size:14px;cursor:pointer;transition:color .15s ease}
+.prov-tab:hover,.prov-tab.is-on{color:var(--text)}
+.prov-tab .cnt{margin-left:6px;font-family:var(--font-mono);font-size:var(--fs-small);color:var(--accent)}
+.prov-ind{position:absolute;left:0;bottom:-1px;height:1px;width:0;background:var(--accent);transition:transform .3s var(--ease-out),width .3s var(--ease-out)}
+.modal-box{position:relative}
+.modal:not([hidden]){animation:fadeIn .18s var(--ease-out)}
+.modal:not([hidden]) .modal-box{animation:rise .28s var(--ease-out)}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scale(.985)}}
+/* 偵測中：一條 1px 的亮線在視窗頂端來回掃 */
+.scanline{position:absolute;left:0;top:0;height:1px;width:100%;overflow:hidden;opacity:0;transition:opacity .2s ease;pointer-events:none}
+.scanline::after{content:"";position:absolute;inset:0;width:30%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:sweep 1.3s var(--ease-out) infinite}
+.modal-box.scanning .scanline{opacity:1}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+/* 卡片：切分頁時依序浮現；連上的那一刻，燈與徽章彈一下 */
+.prov-list.enter .prov-card{animation:rise .32s var(--ease-out) backwards}
+.prov-list.enter .prov-card:nth-child(2){animation-delay:40ms}
+.prov-list.enter .prov-card:nth-child(3){animation-delay:80ms}
+.prov-list.enter .prov-card:nth-child(4){animation-delay:120ms}
+.prov-list.enter .prov-card:nth-child(n+5){animation-delay:160ms}
+.lamp{width:7px;height:7px;border-radius:50%;flex:none;background:var(--control);transition:background-color .2s ease}
+.lamp.ok{background:var(--positive);box-shadow:0 0 0 3px rgba(69,179,150,.14)}
+.lamp.on{animation:breathe 2.4s ease-in-out infinite}
+.badge.just,.lamp.just{animation:pop .5s var(--ease-out)}
+@keyframes pop{0%{transform:scale(.7);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+.prov-card.is-busy .prov-row .btn{opacity:.5;pointer-events:none}
+.spin{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--control);border-top-color:var(--accent);animation:spin .7s linear infinite;display:inline-block;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- 資產 chip（在提示框裡看得到圖） ---------- */
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 9px 5px 5px;border:1px solid var(--control);border-radius:var(--radius-chip);background:var(--raised)}
+.chip img{width:34px;height:26px;object-fit:cover;border-radius:3px;background:var(--surface)}
+.chip .cn{font-size:var(--fs-small);color:var(--text)}
+.chip .cx{border:0;background:none;color:var(--faint);cursor:pointer;font-size:12px;line-height:1;padding:2px}
+.chip .cx:hover{color:var(--negative)}
+
+/* ---------- @ 資產選單 ---------- */
+.at-menu{position:absolute;z-index:70;width:290px;max-height:240px;overflow:auto;background:var(--raised);border:1px solid var(--control);border-radius:8px;box-shadow:var(--shadow);padding:4px}
+.at-item{display:flex;align-items:center;gap:9px;width:100%;padding:6px 8px;border:0;border-radius:var(--radius-chip);background:none;color:var(--text);font-size:var(--fs-small);cursor:pointer;text-align:left}
+.at-item:hover{background:var(--active)}
+.at-item img{width:38px;height:26px;object-fit:cover;border-radius:3px;background:var(--surface);flex:none}
+.prompt-wrap{position:relative}
+
+
+/* ---------- 側欄的摺疊區塊：提示詞庫 / Agent 設定 ---------- */
+.side-block{border-top:1px solid var(--rule);margin-top:14px;padding-top:10px}
+.side-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:0;border-radius:var(--radius-chip);background:none;color:var(--muted);font-size:var(--fs-small);cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.side-toggle:hover{color:var(--text);background:var(--raised)}
+.side-toggle .meta{font-size:11px}
+.side-panel{display:grid;gap:8px;padding:4px 0 2px}
+.side-input{width:100%;height:30px;padding:0 9px;background:var(--ground);border:1px solid var(--border);border-radius:var(--radius-chip);color:var(--text);font-size:var(--fs-small)}
+.side-input::placeholder{color:var(--faint)}
+select.side-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%238a8c92' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:12px;padding-right:26px}
+.side-row{display:flex;gap:6px}
+.side-note{font-size:11px;color:var(--faint);line-height:1.5}
+.prompt-list{display:grid;gap:4px;max-height:260px;overflow-y:auto}
+.prompt-item{display:grid;gap:2px;padding:7px 8px;border:0;border-radius:var(--radius-chip);background:none;color:var(--text);text-align:left;cursor:pointer;transition:background-color .15s ease}
+.prompt-item:hover{background:var(--raised)}
+.prompt-item .pt{font-size:var(--fs-small);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prompt-item .pc{font-size:11px;color:var(--faint)}
+.side-empty{font-size:11px;color:var(--faint);padding:6px 8px}
+.btn.sm{height:28px;padding:0 10px;font-size:var(--fs-small)}
+
+/* ---------- 資產區 ---------- */
+.assets-panel{margin-bottom:var(--gap)}
+.asset-list{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.asset{position:relative;width:104px;display:grid;gap:5px}
+.asset img{width:104px;height:70px;object-fit:cover;border-radius:var(--radius-chip);background:var(--raised);display:block}
+.asset .an{font-size:11px;color:var(--muted);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asset .acts2{display:flex;gap:2px}
+.asset .ab{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:var(--radius-chip);background:var(--raised);color:var(--muted);font-size:12px;cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.asset .ab:hover{color:var(--text);background:var(--control)}
+.asset .ab.del:hover{color:var(--negative)}
+.asset-add{width:104px;height:70px;display:grid;place-items:center;border:1px dashed var(--control);border-radius:var(--radius-chip);color:var(--muted);font-size:var(--fs-small);cursor:pointer;background:none;transition:color .15s ease,border-color .15s ease}
+.asset-add:hover{color:var(--text);border-color:var(--muted)}
+
+/* ---------- 圖庫管理 ---------- */
+.shot{position:relative}
+.shot .del{position:absolute;top:8px;right:8px;width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:var(--radius-chip);background:rgba(19,18,23,.82);color:var(--muted);cursor:pointer;opacity:0;transition:opacity .15s ease,color .15s ease}
+.shot:hover .del{opacity:1}
+.shot .del:hover{color:var(--negative)}
+
+/* ---------- 滾動軸 ---------- */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2f2f34;border-radius:6px;border:2px solid var(--ground)}
+::-webkit-scrollbar-thumb:hover{background:#3d3d44}
+.sidebar::-webkit-scrollbar-thumb{background:#26262b;border-color:var(--ground)}
+
+.nav-item{position:relative;display:flex;align-items:center;gap:10px;height:34px;padding:0 8px;border:0;border-radius:var(--radius-chip);background:none;color:var(--muted);font-size:14px;text-align:left;cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.nav-label{white-space:nowrap}
+.nav-item svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav-item:hover{background:var(--raised);color:var(--text)}
+.nav-item[aria-current="page"]{color:var(--text)}
+.nav-item[aria-current="page"] .nav-label{display:inline-block}
+.nav-item[aria-current="page"] .nav-label::after{content:"";display:block;height:1px;margin-top:3px;background:var(--accent);animation:fadeIn .22s var(--ease-out)}
+.nav-bottom{margin-top:auto;padding-top:14px;border-top:1px solid var(--rule);display:grid;gap:2px}
+.nav-sep{height:1px;background:var(--rule);margin:8px 8px}
+.nav-meta{margin-left:auto;display:inline-flex;align-items:center;gap:7px;max-width:66px;flex:none;font-family:var(--font-mono);font-size:11px;color:var(--faint)}
+.nav-meta .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item.danger:hover{color:var(--negative)}
+
+.canvas{min-width:0;padding:var(--pad) var(--pad) 72px}
+.view + .view{margin-top:var(--section-gap)}
+.view.enter{animation:viewIn .24s var(--ease-out)}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px)}}
+
+/* ---------- 標題列 ---------- */
+.title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:var(--gap)}
+.title-row h1{font-size:var(--fs-title);line-height:1.2;font-weight:600;letter-spacing:-.01em}
+.sub{margin-top:6px;color:var(--muted);font-size:var(--fs-body);max-width:64ch}
+.title-actions{display:flex;align-items:center;gap:12px;flex:none}
+.stamp{color:var(--faint);font-size:var(--fs-small);font-variant-numeric:tabular-nums}
+.icon-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--control);border-radius:var(--radius-control);background:var(--surface);color:var(--muted);cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn:hover{color:var(--text);background:var(--raised)}
+
+/* ---------- 狀態列：一排「名稱 數值」，不是一組大數字卡 ---------- */
+.kpis{display:flex;flex-wrap:wrap;align-items:center;gap:6px 0;background:none;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:0;margin-bottom:var(--section-gap)}
+.kpi{display:flex;align-items:baseline;gap:8px;padding:11px 20px 11px 0;margin-right:20px;position:relative;min-width:0}
+.kpi+.kpi{padding-left:0}
+.kpi+.kpi::before{content:"";position:absolute;left:-10px;top:50%;width:1px;height:14px;margin-top:-7px;background:var(--border)}
+.kpi-label{color:var(--muted);font-size:var(--fs-small);white-space:nowrap}
+.kpi-value{display:inline;margin:0;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:15px;line-height:1.2;font-weight:500;white-space:nowrap}
+.kpi-value small{margin-left:3px;font-family:inherit;font-size:.8em;font-weight:400;color:var(--muted)}
+.kpi-note{display:none;color:var(--faint);font-size:var(--fs-small);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:1560px){.kpi-note{display:inline}}
+.kpi.lead .kpi-value{font-size:15px}
+
+/* ---------- 面板 ---------- */
+.panel{background:var(--surface);border-radius:var(--radius-card);padding:var(--card-pad);min-width:0}
+.panel + .panel,.panel + .kpis,.kpis + .panel{margin-top:var(--section-gap)}
+.kpis + .panel,.kpis + .composer{margin-top:0}
+.panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.panel h2{font-size:16px;line-height:1.3;font-weight:600}
+.meta{color:var(--faint);font-size:var(--fs-small);font-variant-numeric:tabular-nums}
+
+/* ---------- 出圖 composer ---------- */
+.composer{display:grid;gap:12px}
+.composer textarea{width:100%;min-height:82px;resize:vertical;padding:12px 14px;background:var(--ground);color:var(--text);border:1px solid var(--border);border-radius:8px;font:inherit;line-height:1.55}
+.composer textarea::placeholder{color:var(--faint)}
+.prompt-tools{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:8px}
+.tool-btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:0;border-radius:var(--radius-chip);background:none;color:var(--muted);font-size:var(--fs-small);cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.tool-btn:hover{color:var(--text);background:var(--raised)}
+.tool-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tool-btn.is-busy,.btn.is-busy{color:var(--accent);pointer-events:none}
+.tool-btn.is-busy svg{animation:twinkle 1s ease-in-out infinite}
+.btn.is-busy{border-color:var(--accent)}
+@keyframes twinkle{50%{transform:scale(.7) rotate(20deg);opacity:.5}}
+textarea,.rich{transition:border-color .2s ease,box-shadow .35s var(--ease-out)}
+/* 可以在文字裡放「資產泡泡」的輸入框：泡泡＝縮圖＋圖N，整顆一起刪 */
+.rich{width:100%;min-height:82px;resize:vertical;overflow:auto;padding:12px 14px;background:var(--ground);color:var(--text);border:1px solid var(--border);border-radius:8px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;outline:0}
+.rich.tall{min-height:150px}
+.rich:empty::before{content:attr(data-placeholder);color:var(--faint);pointer-events:none}
+.ref{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px 0 3px;margin:0 3px;vertical-align:middle;border:1px solid #5c5c62;border-radius:999px;background:#2b2b30;color:#fff;font-size:13px;line-height:1;user-select:all;cursor:default;animation:pop .35s var(--ease-out)}
+.ref img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--surface)}
+.ref b{font-weight:500}
+.ref.miss{opacity:.6;border-style:dashed}
+textarea:focus-visible,.rich:focus-visible{outline:0;border-color:var(--accent)}
+textarea.thinking,.rich.thinking{border-color:var(--accent);background-image:linear-gradient(90deg,transparent,rgba(69,179,150,.1),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:thinking 1.4s var(--ease-out) infinite}
+@keyframes thinking{from{background-position:-60% 0}to{background-position:180% 0}}
+textarea.landed,.rich.landed{animation:landed .7s var(--ease-out)}
+@keyframes landed{0%{box-shadow:0 0 0 0 rgba(69,179,150,.5)}100%{box-shadow:0 0 0 8px rgba(69,179,150,0)}}
+.composer-bar{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.field{display:grid;gap:6px}
+.field-label{font-size:var(--fs-small);color:var(--muted)}
+.control{height:var(--control-height);padding:0 32px 0 12px;appearance:none;background:var(--ground);border:1px solid var(--control);border-radius:var(--radius-control);font-size:13px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%238a8c92' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;background-size:12px}
+.btn{height:36px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--control);border-radius:var(--radius-control);background:var(--surface);font-size:14px;font-weight:500;cursor:pointer;transition:background-color .15s ease,transform .12s var(--ease-out)}
+.btn:hover{background:var(--raised)}
+.btn:active{transform:translateY(1px)}
+.btn.primary:hover{background:#e9e9ec}
+.btn.primary{margin-left:auto;background:var(--primary);color:var(--primary-ink);border-color:transparent;font-weight:600}
+.btn.ghost{background:transparent}
+
+/* ---------- 佇列 ---------- */
+.qrow{display:grid;grid-template-columns:52px minmax(0,1fr) 76px 76px 92px;align-items:center;gap:16px;min-height:50px;padding:9px 0;margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:var(--radius-chip);transition:background-color .15s ease}
+.qrow:hover{background:var(--raised)}
+.qrow+.qrow{border-top:1px solid var(--rule)}
+.qrow .qid{font-family:var(--font-mono);font-size:var(--fs-small);color:var(--muted)}
+.qrow .qprompt{font-size:var(--fs-body);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrow .qbar{grid-column:2;height:2px;background:var(--raised);margin-top:6px}
+.qrow .qbar i{display:block;height:100%;background:var(--accent)}
+.qrow .qfig{font-family:var(--font-mono);font-size:var(--fs-small);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.qrow .qtime{font-size:var(--fs-small);color:var(--faint);text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 狀態 pill ---------- */
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:var(--fs-small);font-weight:500;background:var(--pill-neutral-bg);color:var(--pill-neutral-ink);white-space:nowrap}
+.pill.busy{background:var(--pill-positive-bg);color:var(--pill-positive-ink)}
+.pill.warn{background:var(--pill-warning-bg);color:var(--pill-warning-ink)}
+.pill.bad{background:var(--pill-negative-bg);color:var(--pill-negative-ink)}
+
+/* ---------- 帳號表 ---------- */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{height:34px;padding:0 16px 0 0;text-align:left;font-weight:400;font-size:var(--fs-small);color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:8px 16px 8px 0;border-bottom:1px solid var(--rule);vertical-align:middle}
+th:last-child,td:last-child{padding-right:0}
+th.n,td.n{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+.roster tbody tr{transition:background-color .15s ease}
+.roster tbody tr:hover{background:rgba(255,255,255,.025)}
+.wid{font-family:var(--font-mono);font-size:var(--fs-small);color:var(--faint);margin-right:10px}
+.email{color:var(--text)}
+.totp{display:grid;gap:5px;justify-items:start;padding:0;border:0;background:none;cursor:pointer;text-align:left}
+.totp:hover .totp-code{color:var(--accent)}
+.totp-code{font-family:var(--font-mono);font-size:13px;letter-spacing:.08em;color:var(--text);font-variant-numeric:tabular-nums}
+.totp-bar{width:72px;height:2px;background:var(--raised)}
+.totp-bar i{display:block;height:100%;background:var(--muted)}
+.acts{display:flex;gap:6px;justify-content:flex-end}
+.small-dim{color:var(--faint);font-size:var(--fs-small)}
+.rowbtn{height:28px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius-chip);background:none;color:var(--muted);font-size:var(--fs-small);cursor:pointer;white-space:nowrap;transition:color .15s ease,background-color .15s ease}
+.rowbtn:hover{background:var(--raised);color:var(--text)}
+.rowbtn[disabled]{opacity:.35;pointer-events:none}
+.rowbtn.danger:hover{color:var(--negative)}
+.rowbtn.lead{color:var(--text);border-color:var(--control)}
+
+/* ---------- 圖庫 ---------- */
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--gap)}
+.shot{display:grid;gap:8px}
+.shot img{width:100%;aspect-ratio:16/9;object-fit:contain;border-radius:var(--radius-chip);background:var(--raised);cursor:zoom-in;transition:opacity .15s ease}
+.shot img:hover{opacity:.85}
+.shot figcaption{display:grid;gap:3px}
+.shot-prompt{font-size:var(--fs-body);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shot-prompt.unknown{color:var(--faint)}
+.shot-meta{font-size:var(--fs-small);color:var(--faint);font-variant-numeric:tabular-nums}
+.empty{display:grid;place-items:center;min-height:120px;padding:24px;border:1px dashed var(--control);border-radius:var(--radius-card);color:var(--muted);text-align:center}
+
+/* ---------- 手動台（內嵌 ChatGPT） ---------- */
+.embed-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--gap);align-items:start}
+.embed-stage{min-width:0}
+.embed-frame{position:relative;background:#0b0b0c;border-radius:var(--radius-chip);overflow:hidden;aspect-ratio:3/2}
+.embed-frame img{width:100%;height:100%;object-fit:contain;display:block;cursor:crosshair}
+.embed-frame .empty{position:absolute;inset:0;min-height:0;height:auto;border-radius:var(--radius-chip)}
+.embed-side{display:grid;gap:14px;align-content:start}
+.embed-side textarea{width:100%;padding:12px 14px;background:var(--ground);color:var(--text);border:1px solid var(--border);border-radius:8px;font:inherit;line-height:1.55;resize:vertical}
+.embed-actions{display:flex;gap:8px;flex-wrap:wrap}
+.embed-hint{margin:0;font-size:var(--fs-small);color:var(--faint)}
+.file-btn{cursor:pointer}
+.style-input{width:236px;padding:0 12px;background-image:none}
+
+/* ---------- 浮層 ---------- */
+.lightbox{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:40px;background:rgba(8,8,9,.97)}
+.lb-inner{width:100%;max-width:1080px;display:grid;gap:14px}
+.lb-inner img{width:auto;max-width:100%;max-height:calc(100vh - 150px);margin:0 auto;object-fit:contain;border-radius:var(--radius-card)}
+.lb-meta{display:flex;gap:16px;align-items:baseline;justify-content:space-between;color:var(--muted);font-size:var(--fs-small)}
+.lb-prompt{color:var(--text);font-size:var(--fs-body)}
+#toasts{position:fixed;right:24px;bottom:24px;z-index:70;display:grid;gap:8px;justify-items:end}
+.toast{display:flex;align-items:center;gap:9px;max-width:420px;padding:11px 15px;border-radius:8px;background:var(--raised);color:var(--text);font-size:var(--fs-body);box-shadow:var(--shadow);animation:toastIn .22s var(--ease-out)}
+@keyframes toastIn{from{opacity:0;transform:translateY(6px)}}
+.toast .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.toast .dot.ok{background:var(--accent)}
+.toast .dot.err{background:var(--negative)}
+.phonebar{display:none}
+.phonebar-scope{font-size:var(--fs-small);color:var(--muted)}
+
+@media (max-width:1100px){
+  .roster td[data-c="login"],.roster th:nth-child(5){display:none}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:fixed;inset:0;width:100%;height:100%;z-index:40;background:var(--ground);transform:translateX(-100%);transition:transform .2s var(--ease-out);border-right:0}
+  .sidebar.open{transform:none}
+  .phonebar{display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:30;background:var(--ground)}
+  .phonebar-title{font-size:15px;font-weight:600}
+  .canvas{padding:16px 16px 24px}
+  .kpi{padding-right:12px;margin-right:12px}
+  .kpi+.kpi::before{display:none}
+  .title-row{flex-wrap:wrap;align-items:flex-start}
+  .qrow{grid-template-columns:44px minmax(0,1fr) 68px;gap:10px}
+  .qrow .qfig,.qrow .qtime{display:none}
+  .btn.primary{margin-left:0}
+  .gallery{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .embed-grid{grid-template-columns:minmax(0,1fr)}
+  .acts{gap:4px}
+}
+@media (max-width:640px){
+  .modal{padding:12px}
+  .modal-box{padding:18px}
+  /* 表格在手機上變成兩行式清單：識別與關鍵數字在第一行，其餘欄位退到第二行 */
+  .roster,.roster tbody{display:block}
+  .roster thead{display:none}
+  .roster tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"id id id status" "quota prod totp acts";align-items:center;gap:4px 10px;padding:11px 0}
+  .roster td{display:block;border:0;padding:0}
+  .roster td[data-c="id"]{grid-area:id;min-width:0;display:flex;align-items:baseline;overflow:hidden}
+  .roster td[data-c="status"]{grid-area:status;justify-self:end}
+  .roster td[data-c="id"] .email{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .roster td[data-c="quota"]{grid-area:quota;font-size:15px}
+  .roster td[data-c="quota"]::before{content:"剩 ";font-size:var(--fs-small);color:var(--faint)}
+  .roster td[data-c="prod"]{grid-area:prod;font-size:var(--fs-small);color:var(--muted)}
+  .roster td[data-c="prod"]::before{content:"出 ";color:var(--faint)}
+  .roster td[data-c="login"]{display:none}
+  .roster td[data-c="totp"]{grid-area:totp}
+  .roster td[data-c="totp"] .totp-bar{width:56px}
+  .roster td[data-c="acts"]{grid-area:acts;justify-self:end}
+  .roster .acts{gap:10px}
+  .roster .rowbtn{height:24px;padding:0 2px}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important;animation:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><img src="/brand/logo.png" alt=""></span>
+      <span>
+        <span class="brand-name">Tidepool</span>
+        <span class="brand-scope" id="brandScope">ChatGPT 號池 · 10 個帳號</span>
+      </span>
+    </div>
+    <nav class="nav" aria-label="主選單">
+      <button class="nav-item" data-route="gen" aria-current="page">
+        <svg viewBox="0 0 16 16"><path d="M8 2.2c.55 2.75 1.95 4.15 4.8 4.8-2.85.65-4.25 2.05-4.8 4.8-.55-2.75-1.95-4.15-4.8-4.8 2.85-.65 4.25-2.05 4.8-4.8Z"/></svg>
+        <span class="nav-label">出圖</span>
+      </button>
+      <button class="nav-item" data-route="character">
+        <svg viewBox="0 0 16 16"><circle cx="8" cy="5.2" r="2.6"/><path d="M3 13.6c.4-2.6 2.5-4.2 5-4.2s4.6 1.6 5 4.2"/></svg>
+        <span class="nav-label">角色設計</span>
+      </button>
+      <button class="nav-item" data-route="accounts">
+        <svg viewBox="0 0 16 16"><circle cx="8" cy="5.4" r="2.6"/><path d="M3 13.4c.6-2.3 2.4-3.5 5-3.5s4.4 1.2 5 3.5"/></svg>
+        <span class="nav-label">帳號</span>
+      </button>
+      <button class="nav-item" data-route="gallery">
+        <svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.4" height="4.4" rx="1"/><rect x="9.1" y="2.5" width="4.4" height="4.4" rx="1"/><rect x="2.5" y="9.1" width="4.4" height="4.4" rx="1"/><rect x="9.1" y="9.1" width="4.4" height="4.4" rx="1"/></svg>
+        <span class="nav-label">圖庫</span>
+      </button>
+      <button class="nav-item" data-route="embed">
+        <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5"/><path d="M5.5 14.5h5M8 11.5v3"/></svg>
+        <span class="nav-label">手動台</span>
+      </button>
+    </nav>
+    <div class="nav-bottom">
+      <button class="nav-item" data-act="agentSettings">
+        <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6"/></svg>
+        <span class="nav-label">Agent 設定</span>
+        <span class="nav-meta"><span class="lamp" id="agentLamp"></span><span class="t" id="agentNavText"></span></span>
+      </button>
+      <button class="nav-item" data-act="copyAgent">
+        <svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5h-7a1 1 0 0 0-1 1v7"/></svg>
+        <span class="nav-label">複製用法給 agent</span>
+      </button>
+      <div class="nav-sep" role="presentation"></div>
+      <button class="nav-item" data-act="folder">
+        <svg viewBox="0 0 16 16"><path d="M2 4.2h4.3l1.3 1.6H14v6.4H2z"/></svg>
+        <span class="nav-label">輸出資料夾</span>
+      </button>
+      <button class="nav-item danger" data-act="stopall">
+        <svg viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1"/></svg>
+        <span class="nav-label">全部關閉</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="phonebar">
+      <button class="icon-btn" id="btnMenu" aria-label="開啟選單">
+        <svg viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg>
+      </button>
+      <span class="phonebar-title">AI-Pool</span>
+      <span class="phonebar-scope" id="phoneScope">本機號池</span>
+    </header>
+    <main class="canvas">
+
+      <!-- ============ 出圖 ============ -->
+      <section class="view" id="view-gen">
+        <div class="title-row">
+          <div>
+            <h1>出圖</h1>
+            <p class="sub" id="genSub">載入中…</p>
+          </div>
+          <div class="title-actions">
+            <span class="stamp" id="stamp">&#8212;</span>
+            <button class="icon-btn" id="btnRefresh" aria-label="重新整理" title="重新整理">
+              <svg viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.7-3.9"/><path d="M13.4 2.2v3.1h-3.1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="kpis" id="kpisGen">
+          <div class="kpi lead">
+            <span class="kpi-label">今日圖檔</span>
+            <span class="kpi-value" id="kpiToday">&#8212;</span>
+            <span class="kpi-note" id="kpiTodayNote">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">剩餘配額</span>
+            <span class="kpi-value" id="kpiQuota">&#8212;</span>
+            <span class="kpi-note" id="kpiQuotaNote">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">已登入</span>
+            <span class="kpi-value" id="kpiLogin">&#8212;</span>
+            <span class="kpi-note" id="kpiLoginNote">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">出圖中</span>
+            <span class="kpi-value" id="kpiBusy">&#8212;</span>
+            <span class="kpi-note" id="kpiBusyNote">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">平均耗時</span>
+            <span class="kpi-value" id="kpiDur">&#8212;</span>
+            <span class="kpi-note" id="kpiDurNote">&#8212;</span>
+          </div>
+        </div>
+
+        <div class="panel composer">
+          <label class="sr-only" for="prompt">提示詞</label>
+          <div class="prompt-wrap">
+            <div class="chip-row" id="chipRow" hidden></div>
+            <div class="rich" id="prompt" role="textbox" aria-multiline="true" aria-label="提示詞" data-placeholder="描述你想要的圖片，例如：橘貓在窗邊看夕陽，暖色調，電影感光影。輸入 @ 可以放入參考圖"></div>
+            <div class="at-menu" id="atMenu" hidden></div>
+            <div class="prompt-tools">
+              <button class="tool-btn" id="btnOptimize" title="用你設定的 agent 把想法改寫成專業提示詞">
+                <svg viewBox="0 0 16 16"><path d="M8 2.2c.55 2.75 1.95 4.15 4.8 4.8-2.85.65-4.25 2.05-4.8 4.8-.55-2.75-1.95-4.15-4.8-4.8 2.85-.65 4.25-2.05 4.8-4.8Z"/></svg><span>AI 優化</span>
+              </button>
+              <button class="tool-btn" id="btnLibrary">
+                <svg viewBox="0 0 16 16"><path d="M3 3.2h4.2c.6 0 .8.3.8.8v8.8c0-.5-.3-.8-.9-.8H3zM13 3.2H8.8c-.6 0-.8.3-.8.8v8.8c0-.5.3-.8.9-.8H13z"/></svg><span>提示詞庫</span>
+              </button>
+            </div>
+          </div>
+          <div class="composer-bar">
+            <label class="field"><span class="field-label">比例</span>
+              <select class="control" id="selRatio">
+                <option value="16:9" selected>16:9 寬</option><option value="1:1">1:1 方</option>
+                <option value="9:16">9:16 直</option><option value="4:3">4:3</option><option value="3:4">3:4</option>
+              </select>
+            </label>
+            <label class="field"><span class="field-label">風格（選填）</span>
+              <input class="control style-input" id="selStyle" list="styleList" placeholder="不套用" value="">
+              <datalist id="styleList">
+                <option value="cinematic concept art, volumetric lighting, painterly detail"></option>
+                <option value="photorealistic, natural light, shallow depth of field, 50mm lens"></option>
+                <option value="cyberpunk, neon lighting, rain-slick streets, high contrast"></option>
+                <option value="anime illustration, soft cel shading, vibrant colors, studio quality"></option>
+                <option value="oil painting on canvas, visible brush strokes, rich impasto"></option>
+                <option value="studio product photography, softbox lighting, plain backdrop"></option>
+              </datalist>
+            </label>
+            <label class="field"><span class="field-label">帳號</span>
+              <select class="control" id="selWorker"><option value="">自動（配額優先）</option></select>
+            </label>
+            <button class="btn primary" id="btnGen">出圖</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>最近產出</h2>
+            <span class="meta" id="recentMeta">&#8212;</span>
+          </div>
+          <div class="gallery" id="recentGrid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>佇列</h2>
+            <span class="meta" id="jobsMeta">&#8212;</span>
+          </div>
+          <div id="jobsList"></div>
+        </div>
+      </section>
+
+      <!-- ============ 角色設計（內容由 /character/character.js 繪製） ============ -->
+      <section class="view" id="view-character" hidden>
+        <div id="charApp"><p class="sub">載入中…</p></div>
+      </section>
+
+      <!-- ============ 帳號 ============ -->
+      <section class="view" id="view-accounts" hidden>
+        <div class="title-row">
+          <div>
+            <h1>帳號</h1>
+            <p class="sub">每個帳號一個獨立的瀏覽器 profile，驗證碼 30 秒輪替一次。點驗證碼即可複製。</p>
+          </div>
+          <div class="title-actions">
+            <button class="btn ghost" id="btnLoginAll">全部重新登入</button>
+            <button class="btn ghost" id="btnStopAll2">全部關閉</button>
+          </div>
+        </div>
+
+        <div class="row-actions">
+          <label class="btn ghost file-btn">匯入帳號密碼<input type="file" id="accountsFile" accept=".txt,text/plain" hidden></label>
+          <span class="meta" id="importMeta">把帳號檔匯入後，帳號列會立刻更新</span>
+          <span class="meta" id="loginMeta"></span>
+        </div>
+        <details class="import-hint" id="importHint">
+          <summary>帳號檔格式</summary>
+          <p class="body">
+            每行一個帳號，三段用四個連字號 <code>----</code> 分隔：<br>
+            <code>your@mail.com----your-password----BASE32 2FA 密鑰</code><br>
+            2FA 密鑰就是 TOTP 的那串種子（匯入時不會驗證，錯了會在登入時失敗）。<code>#</code> 開頭的行會被當成註解略過。匯入會覆蓋目前的帳號檔，並自動備份成 accounts.txt.bak。
+          </p>
+        </details>
+
+        <div class="kpis" id="kpisAcc">
+          <div class="kpi lead">
+            <span class="kpi-label">剩餘配額</span>
+            <span class="kpi-value" id="kpiQuota2">&#8212;</span>
+            <span class="kpi-note" id="kpiQuota2Note">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">已登入</span>
+            <span class="kpi-value" id="kpiLogin2">&#8212;</span>
+            <span class="kpi-note" id="kpiLogin2Note">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">視窗開啟</span>
+            <span class="kpi-value" id="kpiOpen">&#8212;</span>
+            <span class="kpi-note" id="kpiOpenNote">&#8212;</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">驗證碼輪替</span>
+            <span class="kpi-value" id="kpiTotp">&#8212;</span>
+            <span class="kpi-note" id="kpiTotpNote">&#8212;</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>帳號列表</h2>
+            <span class="meta" id="rosterMeta">&#8212;</span>
+          </div>
+          <div class="table-wrap">
+          <table class="roster">
+            <thead>
+              <tr>
+                <th>帳號</th><th>狀態</th><th class="n">剩餘配額</th><th class="n">產出</th><th class="n">最後登入</th><th>驗證碼</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="rosterBody"></tbody>
+          </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 圖庫 ============ -->
+      <section class="view" id="view-gallery" hidden>
+        <div class="title-row">
+          <div>
+            <h1>圖庫</h1>
+            <p class="sub" id="gallerySub">&#8212;</p>
+          </div>
+        </div>
+        <div class="gallery" id="galleryGrid"></div>
+      </section>
+
+      <!-- ============ 手動台（內嵌 ChatGPT） ============ -->
+      <section class="view" id="view-embed" hidden>
+        <div class="title-row">
+          <div>
+            <h1>手動台</h1>
+            <p class="sub">把某個帳號的 ChatGPT 頁面內嵌在這裡：自己打字、上傳參考圖、直接按送出。瀏覽器在背景離屏執行，不會跳出視窗。</p>
+          </div>
+          <div class="title-actions">
+            <select class="control" id="selEmbedWorker" hidden></select>
+            <button class="btn ghost" id="btnEmbedClose">關閉</button>
+          </div>
+        </div>
+
+        <div class="embed-accounts" id="embedAccounts"></div>
+
+        <div class="panel assets-panel">
+          <div class="panel-head">
+            <h2>資產</h2>
+            <span class="meta" id="assetCount">&#8212;</span>
+          </div>
+          <div class="asset-list" id="assetList"></div>
+        </div>
+
+        <div class="embed-grid">
+          <div class="panel embed-stage">
+            <div class="panel-head">
+              <h2>ChatGPT</h2>
+              <span class="meta" id="embedMeta">尚未開啟</span>
+            </div>
+            <div class="embed-frame" id="embedFrame">
+              <img id="embedImg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="ChatGPT 頁面鏡射" hidden>
+              <div class="empty" id="embedEmpty">選一個帳號，按「開啟」，ChatGPT 的頁面會出現在這裡。</div>
+            </div>
+          </div>
+          <div class="panel embed-side">
+            <div class="panel-head"><h2>操作</h2></div>
+            <label class="field">
+              <span class="field-label">提示詞</span>
+              <div class="prompt-wrap">
+                <div class="rich tall" id="embedPrompt" role="textbox" aria-multiline="true" aria-label="提示詞" data-placeholder="要送進 ChatGPT 的提示詞，填好按「填入」。輸入 @ 可以放入參考圖"></div>
+                <div class="at-menu" id="atMenu2" hidden></div>
+              </div>
+            </label>
+            <div class="embed-actions">
+              <button class="btn" id="btnOptimize2">AI 優化</button>
+              <button class="btn" id="btnEmbedType">填入</button>
+              <button class="btn primary" id="btnEmbedSend">送出</button>
+              <button class="btn ghost" id="btnEmbedGrab">抓圖進圖庫</button>
+            </div>
+            <p class="embed-hint" id="embedHint">在提示詞裡輸入 <code>@</code>，選一張資產，會變成帶縮圖的泡泡；按「填入」時會自動把那些圖附到 ChatGPT。</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Agent 設定 -->
+<div class="modal" id="agentModal" hidden>
+  <div class="modal-box agent">
+    <div class="modal-head">
+      <h2>Agent 設定</h2>
+      <span class="head-acts"><button class="btn ghost sm" id="btnRescan">重新偵測全部</button>
+      <button class="icon-btn" data-close-modal aria-label="關閉">
+        <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button></span>
+    </div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="prov-tabs" id="provTabs" role="tablist">
+      <button class="prov-tab" role="tab" data-ptab="cli">本機 CLI<span class="cnt"></span></button>
+      <button class="prov-tab" role="tab" data-ptab="api">API 金鑰<span class="cnt"></span></button>
+      <span class="prov-ind" id="provInd"></span>
+    </div>
+    <p class="set-note" id="provDesc" style="margin:0 0 12px"></p>
+    <div class="prov-list" id="provList"></div>
+    <div class="prov-foot" id="provFoot">
+      <div class="row" id="provAddRow" hidden>
+        <input class="control" id="addName" placeholder="服務商名稱，例如 DeepSeek" aria-label="名稱">
+        <input class="control" id="addBase" placeholder="https://…/v1" aria-label="base_url">
+        <button class="btn ghost sm" id="btnAddProv">＋ 新增服務商</button>
+      </div>
+      <p class="set-note restore" id="provRestore" hidden></p>
+    </div>
+    <div class="modal-foot">
+      <span class="set-note" id="agentStatus" style="margin:0"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 提示詞庫 -->
+<div class="modal" id="libModal" hidden>
+  <div class="modal-box lib">
+    <div class="modal-head">
+      <h2>提示詞庫</h2>
+      <button class="icon-btn" data-close-modal aria-label="關閉">
+        <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="lib-tabs">
+      <button class="lib-tab is-on" data-lib="cases">案例庫（541 筆）</button>
+      <button class="lib-tab" data-lib="site">整個網站</button>
+      <input class="side-input grow" id="libSearch" placeholder="搜尋…" autocomplete="off" style="max-width:220px;margin-left:auto">
+    </div>
+    <div class="lib-cases" id="libCases"></div>
+    <iframe class="lib-frame" id="libSite" src="https://gpt-image2.canghe.ai/" title="gpt-image-2 提示詞網站" hidden></iframe>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-inner">
+    <img id="lightboxImg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+    <div class="lb-meta">
+      <span class="lb-prompt" id="lightboxPrompt"></span>
+      <span id="lightboxMeta" class="num"></span>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const ROUTES = { gen: "出圖", character: "角色設計", accounts: "帳號", gallery: "圖庫", embed: "手動台" };
+
+const state = {
+  workers: [], accounts: [], jobs: [], outputs: [], health: null,
+  route: "gen", lastUpdate: 0, online: false,
+};
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+function toast(msg, kind = "ok") {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = '<i class="dot"></i><span></span>';
+  t.lastElementChild.textContent = msg;
+  if (kind === "err") t.firstElementChild.classList.add("err");
+  else if (kind === "ok") t.firstElementChild.classList.add("ok");
+  $("#toasts").appendChild(t);
+  while ($("#toasts").children.length > 4) $("#toasts").firstElementChild.remove();
+  setTimeout(() => t.remove(), 4200);
+}
+
+function showLightbox(src, caption, meta) {  // 給其他頁（角色設計）共用的燈箱
+  $("#lightboxImg").src = src;
+  $("#lightboxImg").alt = caption || "";
+  $("#lightboxPrompt").textContent = caption || "";
+  $("#lightboxMeta").textContent = meta || "";
+  $("#lightbox").hidden = false;
+}
+
+function copyText(text, okMsg) {
+  const done = () => toast(okMsg);
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => { fallback(); done(); });
+  } else { fallback(); done(); }
+}
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const wid = (id) => "W" + pad2(id);
+const baseName = (p) => String(p).split(/[\\/]/).pop();
+const nf = new Intl.NumberFormat("zh-Hant-TW");
+
+function fmtUptime(s) {
+  if (!s && s !== 0) return "\u2014";
+  if (s < 60) return s + " 秒";
+  if (s < 3600) return Math.floor(s / 60) + " 分";
+  return Math.floor(s / 3600) + " 小時 " + Math.floor((s % 3600) / 60) + " 分";
+}
+function ago(ts) {
+  if (!ts) return "\u2014";
+  const d = Math.floor(Date.now() / 1000) - ts;
+  if (d < 60) return "剛剛";
+  if (d < 3600) return Math.floor(d / 60) + " 分前";
+  if (d < 86400) return Math.floor(d / 3600) + " 小時前";
+  return Math.floor(d / 86400) + " 天前";
+}
+function clockOf(ts) {
+  const d = new Date(ts * 1000);
+  return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+}
+function dayKey(ts) {
+  const d = new Date(ts * 1000);
+  return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+}
+function isToday(ts) { return dayKey(ts) === dayKey(Math.floor(Date.now() / 1000)); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function trunc(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n) + "…" : s; }
+function nicePrompt(j) {
+  let s = String(j.raw_prompt || j.prompt || "");
+  s = s.replace(/^立即生成图片：/, "");
+  s = s.replace(/。画面宽高比设置为[^。]*。?/, "。");
+  s = s.replace(/。请直接调用画图工具[\s\S]*$/, "");
+  return (s || String(j.prompt || "")).trim();
+}
+function totpRemain() { return 30 - (Math.floor(Date.now() / 1000) % 30); }
+
+/* ---------- 資料衍生 ---------- */
+function promptMap() {
+  const m = {};
+  for (const j of state.jobs) {
+    let paths = [];
+    try { paths = JSON.parse(j.image_paths || "[]"); } catch (e) {}
+    for (const p of paths) m[baseName(p)] = nicePrompt(j);
+  }
+  // 同一張圖被存成兩個檔名時（工作存檔 + 複製 + 手動抓圖），讓沒有提示詞的那一個沿用同一張圖的提示詞；
+  // 同一組裡若出現兩個不同的提示詞，就不猜。
+  const bySize = {};
+  for (const f of state.outputs) (bySize[f.size_kb] = bySize[f.size_kb] || []).push(f);
+  for (const group of Object.values(bySize)) {
+    if (group.length < 2) continue;
+    const known = [...new Set(group.filter((f) => m[f.name]).map((f) => m[f.name]))];
+    if (known.length !== 1) continue;
+    for (const f of group) if (!m[f.name]) m[f.name] = known[0];
+  }
+  return m;
+}
+function poolQuota() { return state.workers.reduce((s, w) => s + (Number(w.quota_left) || 0), 0); }
+function poolProduced() { return state.workers.reduce((s, w) => s + (Number(w.total_generated) || 0), 0); }
+function loggedCount() { return state.workers.filter((w) => w.last_login_ok).length; }
+function activeJobs() { return state.jobs.filter((j) => j.status === "processing" || j.status === "queued"); }
+function completedJobs() { return state.jobs.filter((j) => j.status === "completed" && j.finished_at); }
+function avgDuration() {
+  const done = completedJobs();
+  if (!done.length) return null;
+  const secs = done.map((j) => Number(j.finished_at) - Number(j.created_at)).filter((s) => s > 0);
+  if (!secs.length) return null;
+  return Math.round(secs.reduce((a, b) => a + b, 0) / secs.length);
+}
+function todayFiles() { return state.outputs.filter((f) => isToday(f.mtime)); }
+function yesterdayFiles() {
+  const y = new Date(Date.now() - 86400000);
+  const key = y.getFullYear() + "-" + (y.getMonth() + 1) + "-" + y.getDate();
+  return state.outputs.filter((f) => dayKey(f.mtime) === key);
+}
+
+/* ---------- 繪製 ---------- */
+function renderShell() {
+  $$(".nav-item[data-route]").forEach((b) => {
+    if (b.dataset.route === state.route) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  $$(".view").forEach((v) => { v.hidden = v.id !== "view-" + state.route; });
+  if (renderShell.last !== state.route) {  // 換頁才播，輪詢重畫不重播
+    const v = document.getElementById("view-" + state.route);
+    if (v && renderShell.last) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); }
+    renderShell.last = state.route;
+  }
+  // 把當前的畫面前移，讓螢幕上的 h1 永遠是文件裡的第一個標題
+  const active = document.getElementById("view-" + state.route);
+  if (active && active.parentElement.firstElementChild !== active) {
+    active.parentElement.insertBefore(active, active.parentElement.firstElementChild);
+  }
+  const n = state.workers.length;
+  $("#brandScope").textContent = "本機號池 · " + (n || 0) + " 個帳號";
+  $("#phoneScope").textContent = "本機號池 · " + (n || 0) + " 個帳號";
+  $("#stamp").textContent = state.lastUpdate ? "更新於 " + clockOf(state.lastUpdate) : "\u2014";
+  $("#genSub").textContent = finding();
+}
+
+/* 这一格要回答的問題：號池現在能不能出圖。 */
+function finding() {
+  const busy = activeJobs();
+  if (busy.length) {
+    const who = busy.map((j) => wid(j.worker_id)).join("、");
+    return who + " 正在出圖，進度會即時更新";
+  }
+  const open = state.workers.filter((w) => w.status === "open");
+  if (open.length) return open.length + " 個帳號視窗開啟中，等著手動出圖";
+  const bad = state.workers.length - loggedCount();
+  if (bad > 0) return bad + " 個帳號未登入，重登之後才能出圖";
+  return "號池待命中，隨時可以出圖";
+}
+
+function renderKpis() {
+  const today = todayFiles().length, yest = yesterdayFiles().length;
+  setNum($("#kpiToday"), today + "<small>個</small>");
+  $("#kpiTodayNote").textContent = yest ? "昨天 " + yest + " 個" : "昨天沒有輸出";
+
+  setNum($("#kpiQuota"), nf.format(poolQuota()));
+  $("#kpiQuotaNote").textContent = state.workers.length + " 個帳號合計";
+  $("#kpiLogin").innerHTML = loggedCount() + "<small>/" + state.workers.length + "</small>";
+  $("#kpiLoginNote").textContent = state.health ? "服務運行 " + fmtUptime(state.health.uptime_s) : "服務未連線";
+
+  const busy = activeJobs().length;
+  setNum($("#kpiBusy"), String(busy));
+  $("#kpiBusyNote").textContent = busy ? "佇列有工作" : "佇列是空的";
+
+  const dur = avgDuration();
+  $("#kpiDur").innerHTML = dur == null ? "\u2014" : dur + "<small>秒</small>";
+  $("#kpiDurNote").textContent = dur == null ? "還沒有完成的紀錄" : "近 " + completedJobs().length + " 次完成";
+
+  $("#kpiQuota2").textContent = nf.format(poolQuota());
+  $("#kpiQuota2Note").textContent = state.workers.length + " 個帳號合計";
+  $("#kpiLogin2").innerHTML = loggedCount() + "<small>/" + state.workers.length + "</small>";
+  $("#kpiLogin2Note").textContent = state.workers.length - loggedCount() + " 個未登入";
+  const open = state.workers.filter((w) => w.status === "open").length;
+  $("#kpiOpen").textContent = open;
+  $("#kpiOpenNote").textContent = open ? "視窗開啟中" : "沒有開啟的視窗";
+  $("#kpiTotp").innerHTML = totpRemain() + "<small>秒</small>";
+  $("#kpiTotpNote").textContent = "全部帳號同一個窗口";
+}
+
+function statusOf(w) {
+  if (!w.last_login_ok) return ["bad", "未登入"];
+  if (w.mode === "embed") return ["busy", "手動台中"];
+  if (w.status === "open") return ["warn", "視窗開啟"];
+  if (activeJobs().some((j) => Number(j.worker_id) === w.worker_id)) return ["busy", "出圖中"];
+  return ["", "待命"];
+}
+
+function renderQueue() {
+  const list = state.jobs.slice(0, 6);
+  const el = $("#jobsList");
+  $("#jobsMeta").textContent = state.jobs.length
+    ? state.jobs.length + " 筆紀錄・進行中 " + activeJobs().length
+    : "尚無紀錄";
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">還沒有出圖紀錄，送出第一個提示詞就會出現在這裡。</div>';
+    return;
+  }
+  el.innerHTML = list.map((j) => {
+    const running = j.status === "processing" || j.status === "queued";
+    const pill = running ? "busy" : (j.status === "completed" ? "" : "bad");
+    const label = { queued: "排隊中", processing: "出圖中", completed: "完成", failed: "失敗" }[j.status] || j.status;
+    const dur = j.finished_at ? (Number(j.finished_at) - Number(j.created_at)) + " 秒" : (j.progress || 0) + "%";
+    const time = j.finished_at ? ago(Number(j.finished_at)) : ago(Number(j.created_at));
+    return '<div class="qrow">'
+      + '<span class="qid">' + wid(j.worker_id) + '</span>'
+      + '<span class="qprompt" title="' + esc(nicePrompt(j)) + '">' + esc(nicePrompt(j)) + '</span>'
+      + '<span class="pill ' + pill + '">' + label + '</span>'
+      + '<span class="qfig">' + dur + '</span>'
+      + '<span class="qtime">' + time + '</span>'
+      + (running ? '<span class="qbar" style="grid-column:2 / 4"><i style="width:' + (j.progress || 0) + '%"></i></span>' : "")
+      + '</div>';
+  }).join("");
+}
+
+function renderRoster() {
+  const body = $("#rosterBody");
+  const accs = {};
+  for (const a of state.accounts) accs[a.worker_id] = a;
+  $("#rosterMeta").textContent = state.workers.length + " 個帳號・" + loggedCount() + " 個已登入";
+  if (!state.workers.length) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty">讀不到帳號，服務可能沒在跑。</div></td></tr>';
+    $("#importHint").open = true;
+    return;
+  }
+  const remain = totpRemain();
+  body.innerHTML = state.workers.map((w) => {
+    const [cls, label] = statusOf(w);
+    const a = accs[w.worker_id];
+    const code = a && a.totp && a.totp.code ? a.totp.code : "\u2014\u2014";
+    const isOpen = w.status === "open";
+    return '<tr data-id="' + w.worker_id + '">'
+      + '<td data-c="id"><span class="wid">' + wid(w.worker_id) + '</span><span class="email" title="' + esc(w.email) + '">' + esc(w.email) + '</span></td>'
+      + '<td data-c="status"><span class="pill ' + cls + '">' + label + '</span></td>'
+      + '<td data-c="quota" class="n num">' + nf.format(w.quota_left) + '</td>'
+      + '<td data-c="prod" class="n num">' + nf.format(w.total_generated) + '</td>'
+      + '<td data-c="login" class="num small-dim">' + (w.last_login_ts ? ago(Number(w.last_login_ts)) : "\u2014") + '</td>'
+      + '<td data-c="totp"><button class="totp" data-wid="' + w.worker_id + '" title="點擊複製驗證碼">'
+      + '<span class="totp-code">' + code + '</span>'
+      + '<span class="totp-bar"><i style="width:' + (remain / 30 * 100) + '%"></i></span></button></td>'
+      + '<td data-c="acts"><span class="acts">'
+      + (isOpen ? '' : '<button class="rowbtn lead" data-act="open">開啟</button>')
+      + '<button class="rowbtn" data-act="grab"' + (isOpen ? '' : ' disabled') + '>抓圖</button>'
+      + (w.last_login_ok ? '' : '<button class="rowbtn" data-act="login">登入</button>')
+      + (isOpen ? '<button class="rowbtn" data-act="close">關閉</button>' : '')
+      + '<button class="rowbtn" data-act="cred">帳密</button>'
+      + '</span></td></tr>';
+  }).join("");
+}
+
+function shotHTML(f, pm) {
+  const known = pm[f.name];
+  const label = known || "未記錄提示詞";
+  return '<figure class="shot">'
+    + '<img loading="lazy" src="/api/outputs/file/' + encodeURIComponent(f.name) + '" alt="' + esc(known || f.name) + '" data-file="' + esc(f.name) + '">'
+    + '<button class="del" data-del="' + esc(f.name) + '" title="刪除這個圖檔" aria-label="刪除">' + ICON_X + "</button>"
+    + '<figcaption><span class="shot-prompt' + (known ? '' : ' unknown') + '" title="' + esc(label) + '">' + esc(trunc(label, 42)) + '</span>'
+    + '<span class="shot-meta">' + clockOf(f.mtime) + '・' + nf.format(f.size_kb) + ' KB</span></figcaption></figure>';
+}
+
+function renderGallery() {
+  const pm = promptMap();
+  const recent = state.outputs.slice(0, 4);
+  const rg = $("#recentGrid");
+  $("#recentMeta").textContent = state.outputs.length ? "最近 " + recent.length + " 個・共 " + state.outputs.length + " 個" : "尚無檔案";
+  rg.innerHTML = recent.length
+    ? recent.map((f) => shotHTML(f, pm)).join("")
+    : '<div class="empty">還沒有圖檔，出圖完成後會出現在這裡。</div>';
+
+  const gg = $("#galleryGrid");
+  $("#gallerySub").textContent = state.outputs.length
+    ? "共 " + state.outputs.length + " 個圖檔，最新的在最前面"
+    : "還沒有圖檔";
+  gg.innerHTML = state.outputs.length
+    ? state.outputs.map((f) => shotHTML(f, pm)).join("")
+    : '<div class="empty">圖庫是空的。從上面送一個提示詞，第一張圖會落在這裡。</div>';
+}
+
+function render() {
+  renderShell();
+  renderKpis();
+  renderQueue();
+  renderRoster();
+  renderGallery();
+  renderEmbedAccounts();
+}
+
+/* ---------- 動作 ---------- */
+async function generate() {
+  const prompt = $("#prompt").value.trim();
+  if (!prompt) { toast("先寫一句提示詞", "err"); return; }
+  const body = { prompt, ratio: $("#selRatio").value, style: $("#selStyle").value };
+  const w = $("#selWorker").value;
+  if (w) body.worker_id = Number(w);
+  try {
+    await api("/api/generate", { method: "POST", body: JSON.stringify(body) });
+    $("#prompt").value = "";
+    toast("已排入出圖佇列");
+    pollJobs();
+  } catch (e) { toast("送出失敗：" + e.message, "err"); }
+}
+async function openWorker(id) {
+  // 從帳號頁按「開啟」＝直接進入手動台（內嵌鏡射），不再跳出實體視窗
+  location.hash = "#/embed";
+  $("#selEmbedWorker").value = String(id);
+  await embedOpen(id);
+}
+async function grabWorker(id) {
+  try {
+    const r = await api("/api/grab", { method: "POST", body: JSON.stringify({ worker_id: id }) });
+    toast(r.success ? "已存入圖庫：" + r.files.length + " 個" : (r.error || "抓圖失敗"), r.success ? "ok" : "err");
+    pollOutputs();
+  } catch (e) { toast("抓圖失敗：" + e.message, "err"); }
+}
+async function loginWorker(id) {
+  toast(wid(id) + " 登入中，約 40 秒…");
+  try {
+    const r = await api("/api/login", { method: "POST", body: JSON.stringify({ worker_id: id }) });
+    toast(r.success ? wid(id) + " 登入成功" : "登入失敗", r.success ? "ok" : "err");
+  } catch (e) { toast("登入失敗：" + e.message, "err"); }
+  pollWorkers(); pollAccounts();
+}
+async function closeWorker(id) {
+  try { await api("/api/close", { method: "POST", body: JSON.stringify({ id: id }) }); } catch (e) {}
+  pollWorkers();
+}
+async function copyTOTP(id) {
+  const a = state.accounts.find((x) => x.worker_id === id);
+  let code = a && a.totp && a.totp.code;
+  if (!code) { try { code = (await api("/api/workers/" + id + "/totp")).code; } catch (e) {} }
+  if (code) copyText(code, "驗證碼已複製：" + code);
+  else toast("取不到驗證碼", "err");
+}
+async function copyCred(id) {
+  const a = state.accounts.find((x) => x.worker_id === id);
+  if (!a) { toast("沒有帳密資料", "err"); return; }
+  copyText(a.email + "\n" + a.password, "帳號密碼已複製");
+}
+async function stopAll() {
+  try { await api("/api/stop_all", { method: "POST" }); toast("已關閉所有視窗"); } catch (e) {}
+  pollWorkers();
+}
+
+/* ---------- 輪詢 ---------- */
+async function pollWorkers() {
+  try {
+    const [wr, h] = await Promise.all([api("/api/workers"), api("/health")]);
+    state.workers = wr.workers; state.health = h; state.online = true;
+    state.lastUpdate = Math.floor(Date.now() / 1000);
+  } catch (e) { state.online = false; }
+  render();
+}
+async function pollAccounts() {
+  try {
+    const r = await api("/api/accounts");
+    state.accounts = r.accounts;
+    const sel = $("#selWorker"), keep = sel.value;
+    sel.innerHTML = '<option value="">自動（配額優先）</option>' +
+      state.workers.map((w) => '<option value="' + w.worker_id + '">' + wid(w.worker_id) + "</option>").join("");
+    sel.value = keep;
+    const esel = $("#selEmbedWorker"), ekeep = esel.value;
+    esel.innerHTML = state.workers.map((w) => '<option value="' + w.worker_id + '">' + wid(w.worker_id) + "</option>").join("");
+    esel.value = ekeep || (state.workers.length ? String(state.workers[0].worker_id) : "");
+  } catch (e) {}
+  render();
+}
+async function pollJobs() {
+  try { state.jobs = (await api("/api/jobs?limit=24")).jobs; } catch (e) {}
+  render();
+}
+async function pollOutputs() {
+  try { state.outputs = (await api("/api/outputs?limit=96")).files; } catch (e) {}
+  render();
+}
+
+/* ---------- 手動台：內嵌 ChatGPT ---------- */
+const embed = { worker: 0, open: false, timer: null };
+
+const AGENT_GUIDE = `# AI-Pool：這台電腦上的 ChatGPT 號池（10 個帳號，各自有獨立的瀏覽器 profile）
+
+服務網址：http://127.0.0.1:7707
+認證：Authorization: Bearer aipool-local （自訂金鑰放 secrets/api_keys.txt，一行一個）
+
+## 出圖（NewAPI 相容，建議用這個）
+POST /v1/videos
+{"model": "gpt-image2-1k", "prompt": "你的提示詞", "aspect_ratio": "16:9", "style": ""}
+→ {"id": "<task_id>", "status": "queued"}
+
+GET /v1/tasks/<task_id>
+→ {"status": "completed", "progress": 100,
+   "result": {"urls": ["http://127.0.0.1:7707/api/outputs/file/<name>.png"]}}
+
+style 可以留空（不套用任何風格），或填 preset：concept_art / realistic / cyberpunk / anime /
+oil_painting / product，也可以直接寫一段英文描述。aspect_ratio 會被接成一句英文描述送進提示詞。
+
+## 並發與指定帳號
+同一個 prompt 對不同 worker_id（1..10）各送一次即可並發，實測 3 併發約 50 秒。
+每個帳號配額 999 張圖，用完要等配額重置。
+
+## CLI
+C:\\AI-Pool\\venv\\Scripts\\python C:\\AI-Pool\\core\\generate.py "提示詞" -o out.png -w 3 --res 2k
+
+## 其他端點
+GET  /api/workers              帳號狀態、配額
+GET  /api/jobs?limit=24        工作紀錄
+GET  /api/outputs?limit=96     圖檔清單
+POST /api/agent/ping {"label":"你的名字"}   讓控制台顯示「agent 已連線」`;
+
+async function embedOpen(workerId) {
+  const w = Number(workerId || $("#selEmbedWorker").value || 0);
+  if (!w) { toast("先選一個帳號", "err"); return; }
+  try {
+    await api("/api/embed/open", { method: "POST", body: JSON.stringify({ worker_id: w }) });
+    embed.worker = w; embed.open = true;
+    $("#embedMeta").textContent = wid(w) + " · 連線中";
+    startEmbedPolling();
+    renderEmbedAccounts();
+    toast(wid(w) + " 已進入手動台");
+  } catch (e) { toast("開啟失敗：" + e.message, "err"); }
+}
+async function embedRealWindow() {
+  const w = embed.worker || Number($("#selEmbedWorker").value || 0);
+  if (!w) { toast("先選一個帳號", "err"); return; }
+  try {
+    const r = await api("/api/open", { method: "POST", body: JSON.stringify({ worker_id: w }) });
+    toast(r.success ? wid(w) + " 的實體視窗已開啟" : "開啟失敗：" + (r.error || ""), r.success ? "ok" : "err");
+  } catch (e) { toast("開啟失敗：" + e.message, "err"); }
+}
+async function embedClose() {
+  const w = embed.worker || Number($("#selEmbedWorker").value || 0);
+  if (!w) return;
+  try {
+    await api("/api/embed/close", { method: "POST", body: JSON.stringify({ worker_id: w }) });
+  } catch (e) {}
+  embed.open = false; embed.worker = 0;
+  if (embed.timer) { clearInterval(embed.timer); embed.timer = null; }
+  $("#embedImg").hidden = true;
+  $("#embedEmpty").hidden = false;
+  $("#embedMeta").textContent = "尚未開啟";
+  renderEmbedAccounts();
+  toast("已關閉");
+}
+function startEmbedPolling() {
+  if (embed.timer) clearInterval(embed.timer);
+  embed.timer = setInterval(refreshEmbedFrame, 1000);
+  refreshEmbedFrame();
+}
+async function refreshEmbedFrame() {
+  if (!embed.open || !embed.worker) return;
+  try {
+    const res = await fetch("/api/embed/frame?worker_id=" + embed.worker + "&t=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blob = await res.blob();
+    const img = $("#embedImg");
+    if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+    const url = URL.createObjectURL(blob);
+    img.dataset.url = url;
+    img.src = url;
+    img.hidden = false;
+    $("#embedEmpty").hidden = true;
+    $("#embedMeta").textContent = wid(embed.worker) + " · 已連線";
+  } catch (e) {
+    $("#embedMeta").textContent = wid(embed.worker) + " · 等待中";
+  }
+}
+async function embedClick(e) {
+  if (!embed.open) return;
+  const img = e.currentTarget;
+  const r = img.getBoundingClientRect();
+  if (!r.width) return;
+  const x = (e.clientX - r.left) / r.width * (img.naturalWidth || r.width);
+  const y = (e.clientY - r.top) / r.height * (img.naturalHeight || r.height);
+  try {
+    await api("/api/embed/click", { method: "POST", body: JSON.stringify({ worker_id: embed.worker, x: x, y: y }) });
+  } catch (err) {}
+}
+async function embedType() {
+  const text = $("#embedPrompt").value.trim();
+  if (!text) { toast("先寫一句提示詞", "err"); return; }
+  try {
+    const r = await api("/api/embed/type", { method: "POST", body: JSON.stringify({ worker_id: embed.worker, text: text }) });
+    toast(r.success ? "已填入 ChatGPT 的輸入框" : "填入失敗（文字沒進去）", r.success ? "ok" : "err");
+  } catch (e) { toast("填入失敗：" + e.message, "err"); }
+}
+async function embedSend() {
+  try {
+    const r = await api("/api/embed/send", { method: "POST", body: JSON.stringify({ worker_id: embed.worker }) });
+    toast(r.sent ? "已送出" : "已用 Enter 送出", "ok");
+    setTimeout(refreshEmbedFrame, 1500);
+  } catch (e) { toast("送出失敗：" + e.message, "err"); }
+}
+async function embedGrab() {
+  try {
+    const r = await api("/api/grab", { method: "POST", body: JSON.stringify({ worker_id: embed.worker }) });
+    toast(r.success ? "已存入圖庫：" + r.files.length + " 個" : (r.error || "抓圖失敗"), r.success ? "ok" : "err");
+    pollOutputs();
+  } catch (e) { toast("抓圖失敗：" + e.message, "err"); }
+}
+function renderEmbedAccounts() {
+  const el = $("#embedAccounts");
+  if (!el || !state.workers.length) return;
+  const html = state.workers.map((w) => {
+    const ok = !!w.last_login_ok;
+    const cur = embed.worker === w.worker_id && embed.open ? ' aria-current="true"' : "";
+    return '<button class="acct" data-wid="' + w.worker_id + '"' + cur +
+      ' title="' + (ok ? "可用・點選切換到這個帳號" : "未登入・點選嘗試開啟") + '">' +
+      '<i class="light' + (ok ? " ok" : "") + '"></i>' + wid(w.worker_id) + "</button>";
+  }).join("");
+  if (el.dataset.sig !== html) { el.innerHTML = html; el.dataset.sig = html; }
+}
+
+function setNum(el, html) {
+  if (el.innerHTML === html) return;
+  el.innerHTML = html;
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
+
+async function importAccounts(file) {
+  if (!file) return;
+  const text = await file.text();
+  try {
+    const r = await api("/api/accounts/import", { method: "POST", body: JSON.stringify({ worker_id: 0, text: text }) });
+    if (r.success) {
+      toast("已匯入 " + r.count + " 個帳號");
+      $("#importMeta").textContent = "剛匯入 " + r.count + " 個帳號（舊檔已備份）";
+      pollWorkers(); pollAccounts();
+    } else {
+      toast(r.error || "匯入失敗", "err");
+    }
+  } catch (e) { toast("匯入失敗：" + e.message, "err"); }
+}
+
+async function loginAll() {
+  try {
+    const r = await api("/api/login/all", { method: "POST", body: JSON.stringify({ worker_id: 0, worker_ids: [] }) });
+    toast(r.message || "開始登入", r.count ? "ok" : "info");
+    if (!r.count) $("#loginMeta").textContent = "所有帳號都已登入";
+    pollLoginState();
+  } catch (e) { toast("登入失敗：" + e.message, "err"); }
+}
+
+async function pollLoginState() {
+  try {
+    const st = await api("/api/login/state");
+    const el = $("#loginMeta");
+    if (st.running) {
+      el.textContent = "登入中 W" + pad2(st.current) + "（" + st.done + "/" + st.total + "）";
+      setTimeout(pollLoginState, 3000);
+    } else if (st.total) {
+      el.textContent = "登入完成：" + st.done + "/" + st.total;
+      pollWorkers();
+    }
+  } catch (e) {}
+}
+
+
+/* ---------- 提示詞庫（awesome-gpt-image-2 的案例庫） ---------- */
+const ICON_UP = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10 8 5.5 12.5 10"/></svg>';
+const ICON_DOWN = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6 8 10.5 12.5 6"/></svg>';
+const ICON_X = "<svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"><path d=\"M4.5 4.5l7 7M11.5 4.5l-7 7\"/></svg>";
+let promptCases = [];
+
+async function loadPrompts(q) {
+  const list = $("#promptList");
+  list.innerHTML = '<div class="side-empty">載入中…</div>';
+  try {
+    const r = await api("/api/prompts?q=" + encodeURIComponent(q || "") + "&limit=40");
+    promptCases = r.cases || [];
+    $("#promptCount").textContent = r.total ? r.total + " 筆" : "";
+    list.innerHTML = promptCases.length
+      ? promptCases.map((c, i) =>
+          '<button class="prompt-item" data-i="' + i + '"><span class="pt">' + esc(c.title || "(無標題)") +
+          '</span><span class="pc">' + esc(c.category || "") + "</span></button>").join("")
+      : '<div class="side-empty">找不到符合的提示詞</div>';
+  } catch (e) {
+    list.innerHTML = '<div class="side-empty">提示詞庫載入失敗（需要網路）</div>';
+  }
+}
+
+/* ---------- 資產區 ---------- */
+let assets = [];
+
+async function loadAssets() {
+  try {
+    const r = await api("/api/assets");
+    assets = r.assets || [];
+  } catch (e) { assets = []; }
+  const el = $("#assetList");
+  if (!el) return;
+  $("#assetCount").textContent = assets.length + " 個";
+  if (typeof renderChips === "function") renderChips();
+  el.innerHTML = assets.map((a, i) =>
+    '<div class="asset"><img src="/api/assets/file/' + a.id + '" alt="' + esc(a.name) + '" loading="lazy">'
+    + '<span class="an">' + esc(a.label) + "</span>"
+    + '<span class="acts2">'
+    + '<button class="ab" data-act="up" data-id="' + a.id + '"' + (i === 0 ? " disabled" : "") + ">" + ICON_UP + "</button>"
+    + '<button class="ab" data-act="down" data-id="' + a.id + '"' + (i === assets.length - 1 ? " disabled" : "") + ">" + ICON_DOWN + "</button>"
+    + '<button class="ab del" data-act="del" data-id="' + a.id + '">' + ICON_X + "</button>"
+    + "</span></div>").join("")
+    + '<label class="asset-add">上傳<input type="file" id="assetFile" accept="image/*" hidden></label>';
+  refreshRich();
+}
+
+async function uploadAsset(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const r = await api("/api/assets/upload", {
+        method: "POST",
+        body: JSON.stringify({ worker_id: 0, filename: file.name, data_b64: reader.result }),
+      });
+      assets = r.assets || assets;
+      loadAssets();
+  loadAgentProviders();
+      toast("已加入資產：" + (assets.length ? assets[assets.length - 1].label : ""));
+    } catch (e) { toast("上傳失敗：" + e.message, "err"); }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function moveAsset(id, dir) {
+  const ids = assets.map((a) => a.id);
+  const i = ids.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  ids.splice(j, 0, ids.splice(i, 1)[0]);
+  try {
+    const r = await api("/api/assets/reorder", { method: "POST", body: JSON.stringify({ worker_id: 0, asset_ids: ids }) });
+    assets = r.assets || assets;
+    loadAssets();
+  } catch (e) { toast("排序失敗：" + e.message, "err"); }
+}
+
+async function deleteAsset(id) {
+  try {
+    const r = await api("/api/assets/delete", { method: "POST", body: JSON.stringify({ worker_id: 0, text: id }) });
+    if (r.success) { assets = r.assets || []; loadAssets(); toast("已刪除"); }
+    else toast("刪除失敗", "err");
+  } catch (e) { toast("刪除失敗：" + e.message, "err"); }
+}
+
+
+/* ---------- 彈出視窗 ---------- */
+function openModal(id) { $("#" + id).hidden = false; }
+
+
+/* ---------- Agent 設定：模型商（兩個分頁：本機 CLI / API 金鑰） ---------- */
+const PTABS = [
+  { kind: "cli", label: "本機 CLI", desc: "自動偵測這台電腦上裝了哪些 agent CLI，背景靜默執行，不用填任何東西。" },
+  { kind: "api", label: "API 金鑰", desc: "選一個服務商、貼上 API key，模型清單會自動偵測。" },
+];
+const ACT_LABEL = { detect: "偵測", save: "儲存並偵測模型", test: "測試" };
+const ACT_PATH = { detect: "/api/agent/provider/detect", save: "/api/agent/provider/save", test: "/api/agent/provider/test" };
+const DRAFT_ATTR = { base: "data-base-for", key: "data-key-for", model: "data-model-for" };
+let agentProviders = [];
+let agentActive = "";
+let agentHidden = [];
+let agentTab = "";
+let agentScanning = false;
+let agentMsg = "";
+let agentMsgErr = false;
+let agentBusy = {};   // id -> 正在執行的動作
+let prevConn = {};    // id -> 上一次畫面上的連接狀態（只在「剛連上」那一刻播動畫）
+let lastTab = "";
+let agentDraft = {};  // "base:id" / "key:id" / "model:id" -> 輸入中的值，重畫時還原
+
+async function openAgentSettings() {
+  $("#agentModal").hidden = false;
+  agentTab = ""; lastTab = "";
+  await loadAgentProviders();
+  scanAgents();
+}
+
+async function loadAgentProviders() {
+  try {
+    const r = await api("/api/agent/providers");
+    agentProviders = r.providers || [];
+    agentActive = r.active || "";
+    agentHidden = r.hidden || [];
+    if (!agentTab) agentTab = pickDefaultTab();
+    renderProviders();
+  } catch (e) { setMsg("載入失敗：" + e.message, true); }
+}
+
+async function scanAgents(force) {
+  if (agentScanning) return;
+  agentScanning = true;
+  $("#agentModal .modal-box").classList.add("scanning");
+  setMsg("偵測中…（約 10 秒）");
+  renderProviders();
+  try {
+    const r = await api("/api/agent/scan" + (force === true ? "?force=true" : ""), { method: "POST" });
+    agentProviders = r.providers || agentProviders;
+    agentActive = r.active || "";
+    agentHidden = r.hidden || [];
+    setMsg("");
+  } catch (e) { setMsg("偵測失敗：" + e.message, true); }
+  agentScanning = false;
+  $("#agentModal .modal-box").classList.remove("scanning");
+  renderProviders();
+}
+
+function connectedCount(kind) { return agentProviders.filter((p) => p.kind === kind && p.connected).length; }
+
+function pickDefaultTab() {
+  const act = agentProviders.find((p) => p.id === agentActive);
+  if (act) return act.kind;
+  const t = PTABS.find((x) => connectedCount(x.kind) > 0);
+  return t ? t.kind : "cli";
+}
+
+function cliRank(p) { return p.installed === true ? 0 : p.installed === false ? 2 : 1; }
+
+function setMsg(text, isErr) { agentMsg = text; agentMsgErr = !!isErr; renderStatus(); }
+
+function renderStatus() {
+  const st = $("#agentStatus");
+  if (agentMsg) { st.textContent = agentMsg; st.style.color = agentMsgErr ? "var(--negative)" : ""; return; }
+  const a = agentProviders.find((p) => p.id === agentActive);
+  st.textContent = a ? "AI 優化目前使用：" + a.name + (a.model ? " · " + a.model : "") : "尚未選擇";
+  st.style.color = "";
+}
+
+function draftKey(el) {
+  for (const f in DRAFT_ATTR) if (el.hasAttribute && el.hasAttribute(DRAFT_ATTR[f])) return f + ":" + el.getAttribute(DRAFT_ATTR[f]);
+  return "";
+}
+
+function restoreDrafts() {
+  $$("#provList [data-base-for], #provList [data-key-for], #provList [data-model-for]").forEach((el) => {
+    const v = agentDraft[draftKey(el)];
+    if (v !== undefined) el.value = v;
+  });
+}
+
+function upsertProvider(p) {
+  const i = agentProviders.findIndex((x) => x.id === p.id);
+  if (i >= 0) agentProviders[i] = p; else agentProviders.push(p);
+}
+
+function renderCard(p) {
+  const id = esc(p.id);
+  const busy = agentBusy[p.id];
+  const dis = busy ? " disabled" : "";
+  const models = p.models || [];
+  const def = p.kind === "cli" ? '<option value=""' + (p.model ? "" : " selected") + ">（CLI 預設）</option>" : "";
+  const opts = models.length
+    ? def + models.map((m) => '<option value="' + esc(m) + '"' + (m === p.model ? " selected" : "") + ">" + esc(m) + "</option>").join("")
+    : (def || '<option value="">（尚未偵測到模型）</option>');
+  const modelSel = '<select class="control" data-model-for="' + id + '" aria-label="模型">' + opts + "</select>";
+  const staticTag = p.static ? '<span class="meta">靜態清單</span>' : "";
+  const pick = '<label class="meta prov-pick" title="AI 優化會用這一個"><input type="radio" name="activeProv" value="' + id + '"'
+    + (p.id === agentActive ? " checked" : "") + (p.connected ? "" : " disabled") + "> 優化用</label>";
+  const detecting = (agentScanning && !p.connected && (p.kind === "cli" || p.has_key)) || busy === "detect" || busy === "save";
+  // 燈＝是否連上；勾選＋青色邊＝正在用；徽章只在例外（偵測中、錯誤）才出現
+  const just = p.connected && prevConn[p.id] === false ? " just" : "";
+  const lamp = '<span class="lamp' + (p.connected ? " ok" : "") + (p.connected && p.id === agentActive ? " on" : "") + just + '"></span>';
+  const state = detecting ? '<span class="meta"><i class="spin"></i>偵測中…</span>'
+    : busy === "test" ? '<span class="meta"><i class="spin"></i>測試中…</span>' : "";
+  const err = p.error && !p.connected && !detecting ? '<p class="set-note" style="color:var(--negative);margin-top:6px">' + esc(p.error) + "</p>" : "";
+  const cls = "prov-card compact" + (p.id === agentActive ? " is-active" : "") + (busy ? " is-busy" : "");
+  const delBtn = '<button class="x-btn" data-del-prov="' + id + '" title="刪除" aria-label="刪除 ' + esc(p.name) + '"><svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>';
+  const testBtn = '<button class="btn ghost sm" data-act="test" data-id="' + id + '"' + dis + ">測試</button>";
+  if (p.kind === "cli") {
+    return '<div class="' + cls + '"><div class="prov-row2">' + lamp + '<span class="nm">' + esc(p.name) + "</span>" + state + staticTag
+      + modelSel + testBtn + pick + delBtn + "</div>" + err + "</div>";
+  }
+  const basePh = p.id === "api-custom" ? "https://…/v1" : "base_url";
+  return '<div class="' + cls.replace(" compact", "") + '"><div class="prov-row2" style="margin-bottom:10px">' + lamp + '<span class="nm">' + esc(p.name) + "</span>"
+    + state + pick + delBtn + "</div>"
+    + '<div class="prov-row">'
+    + '<input class="control" data-base-for="' + id + '" aria-label="base_url" placeholder="' + esc(basePh) + '" value="' + esc(p.base_url || "") + '">'
+    + '<input class="control" type="password" data-key-for="' + id + '" aria-label="API key" autocomplete="new-password" placeholder="' + (p.has_key ? "已設定（留空不變）" : "API key") + '">'
+    + "</div>"
+    + '<div class="prov-row" style="margin-top:8px">' + modelSel
+    + '<button class="btn ghost sm" data-act="save" data-id="' + id + '"' + dis + ">儲存並偵測模型</button>" + testBtn + "</div>"
+    + err + (p.note ? '<p class="set-note">' + esc(p.note) + "</p>" : "") + "</div>";
+}
+
+/* 還沒安裝的 CLI 收成一塊，不佔一整張卡 */
+function renderOffGroup(items) {
+  if (!items.length) return "";
+  return '<div class="prov-off"><span class="meta">尚未安裝</span>' + items.map((p) =>
+    '<div class="it"><span>' + esc(p.name) + "</span><code>" + esc(p.install || "") + "</code>"
+    + (p.install ? '<button class="btn ghost sm" data-copy="' + esc(p.install) + '">複製指令</button>' : "")
+    + '<button class="x-btn" data-del-prov="' + esc(p.id) + '" title="移除" aria-label="移除 ' + esc(p.name) + '"><svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8"/></svg></button></div>').join("") + "</div>";
+}
+
+function moveInd() {
+  const on = $("#provTabs .prov-tab.is-on"), ind = $("#provInd");
+  if (!on || !ind) return;
+  ind.style.width = on.offsetWidth + "px";
+  ind.style.transform = "translateX(" + on.offsetLeft + "px)";
+}
+
+function renderProviders() {
+  if (!agentTab) agentTab = "cli";
+  const tab = PTABS.find((t) => t.kind === agentTab) || PTABS[0];
+  $$("#provTabs .prov-tab").forEach((b) => {
+    const n = connectedCount(b.dataset.ptab);
+    b.classList.toggle("is-on", b.dataset.ptab === tab.kind);
+    b.setAttribute("aria-selected", b.dataset.ptab === tab.kind ? "true" : "false");
+    b.querySelector(".cnt").textContent = n ? n : "";
+  });
+  moveInd();
+  $("#provDesc").textContent = tab.desc;
+  const items = agentProviders.filter((p) => p.kind === tab.kind);
+  if (tab.kind === "cli") items.sort((a, b) => cliRank(a) - cliRank(b));
+  const list = $("#provList");
+  const tabChanged = lastTab !== tab.kind;
+  if (!tabChanged) list.classList.remove("enter");  // 一般重畫不重播入場動畫，避免卡片閃一下
+  const on = items.filter((p) => !(p.kind === "cli" && p.installed === false));
+  const off = items.filter((p) => p.kind === "cli" && p.installed === false);
+  list.innerHTML = items.length ? on.map(renderCard).join("") + renderOffGroup(off) : '<p class="set-note">這一類目前沒有項目</p>';
+  if (tabChanged) {  // 換分頁才讓卡片依序浮現
+    list.classList.remove("enter"); void list.offsetWidth; list.classList.add("enter");
+    lastTab = tab.kind;
+  }
+  prevConn = {};
+  agentProviders.forEach((p) => { prevConn[p.id] = !!p.connected; });
+  $("#provAddRow").hidden = tab.kind !== "api";
+  const back = agentHidden.filter((h) => h.kind === tab.kind);
+  const rs = $("#provRestore");
+  rs.hidden = !back.length;
+  rs.innerHTML = back.length ? "已移除：" + back.map((h) => '<a data-restore="' + esc(h.id) + '">' + esc(h.name) + " ↺</a>").join("") : "";
+  restoreDrafts();
+  renderStatus();
+  refreshAgentNav();
+}
+
+/* 側欄 Agent 設定旁的燈：AI 優化現在能不能用 */
+function refreshAgentNav() {
+  const a = agentProviders.find((p) => p.id === agentActive);
+  const ok = !!(a && a.connected);
+  $("#agentLamp").className = "lamp" + (ok ? " ok on" : "");
+  $("#agentNavText").textContent = a ? a.name.replace(/ CLI$/, "") : "未設定";
+}
+
+/* ---------- AI 優化 ---------- */
+async function optimizePrompt(boxId) {
+  const box = document.getElementById(boxId);
+  const raw = box.value.trim();
+  if (!raw) { toast("先寫一句你的想法", "err"); box.focus(); return; }
+  if (!agentProviders.length) await loadAgentProviders();
+  if (!agentProviders.some((p) => p.connected)) {
+    toast("還沒連接任何 agent，先到 Agent 設定連一個", "err");
+    openAgentSettings();
+    return;
+  }
+  const btns = [$("#btnOptimize"), $("#btnOptimize2")].filter(Boolean);
+  btns.forEach((b) => b.classList.add("is-busy"));
+  box.classList.add("thinking");
+  try {
+    const r = await api("/api/prompt/optimize", { method: "POST", body: JSON.stringify({ prompt: raw, refs: [] }) });
+    if (r.success) {
+      box.value = r.prompt;
+      box.classList.remove("landed"); void box.offsetWidth; box.classList.add("landed");
+      toast("已優化 · " + (r.provider || "") + (r.model ? " / " + r.model : ""));
+      renderChips();
+    } else toast("優化失敗：" + (r.error || ""), "err");
+  } catch (e) { toast("優化失敗：" + e.message, "err"); }
+  btns.forEach((b) => b.classList.remove("is-busy"));
+  box.classList.remove("thinking");
+}
+
+/* ---------- 資產 chip：提示框裡看得到圖 ---------- */
+function renderChips() { const row = $("#chipRow"); if (row) { row.hidden = true; row.innerHTML = ""; } }
+
+/* ---------- 提示詞庫視窗 ---------- */
+let libCases = [];
+
+async function openLibrary() {
+  $("#libModal").hidden = false;
+  if (!libCases.length) loadLibCases("");
+}
+
+async function loadLibCases(q) {
+  $("#libCases").innerHTML = '<div class="side-empty">載入中…</div>';
+  try {
+    const r = await api("/api/prompts?q=" + encodeURIComponent(q || "") + "&limit=60");
+    libCases = r.cases || [];
+    $("#libCases").innerHTML = libCases.length
+      ? libCases.map((c, i) =>
+          '<button class="lib-case" data-i="' + i + '">'
+          + '<img loading="lazy" src="https://gpt-image2.canghe.ai' + esc(c.image || "") + '" alt="">'
+          + '<span class="lc">' + esc(c.title || "(無標題)") + "</span></button>").join("")
+      : '<div class="side-empty">找不到符合的案例</div>';
+  } catch (e) {
+    $("#libCases").innerHTML = '<div class="side-empty">載入失敗（需要網路）</div>';
+  }
+}
+
+/* ---------- @ 資產選單 ---------- */
+/* ---------- 可放資產泡泡的輸入框 ---------- */
+function refPill(n) {
+  const a = assets.find((x) => x.index === n);
+  return '<span class="ref' + (a ? "" : " miss") + '" contenteditable="false" data-n="' + n + '">'
+    + (a ? '<img src="/api/assets/file/' + a.id + '" alt="">' : "") + "<b>圖" + n + "</b></span>";
+}
+function richGet(el) {
+  let out = "";
+  const walk = (node) => node.childNodes.forEach((n) => {
+    if (n.nodeType === 3) out += n.data;
+    else if (n.classList && n.classList.contains("ref")) out += "@圖" + n.dataset.n;
+    else if (n.nodeName === "BR") out += "\n";
+    else { if (n.nodeName === "DIV" && out && !out.endsWith("\n")) out += "\n"; walk(n); }
+  });
+  walk(el);
+  return out.replace(/\u00a0/g, " ");
+}
+function richSet(el, text) {
+  el.innerHTML = esc(text || "").replace(/@圖(\d+)/g, (_, n) => refPill(Number(n)));
+}
+function makeRich(el) {
+  el.contentEditable = "plaintext-only";  // 貼上一律純文字，Enter 直接換行
+  Object.defineProperty(el, "value", { get: () => richGet(el), set: (v) => richSet(el, v) });
+  el.addEventListener("input", () => { if (!el.textContent && !el.querySelector(".ref")) el.innerHTML = ""; });
+}
+function refreshRich() { $$(".rich").forEach((el) => { if (document.activeElement !== el) richSet(el, richGet(el)); }); }
+
+function setupAtMenu(boxId, menuId) {
+  const box = document.getElementById(boxId);
+  const menu = document.getElementById(menuId);
+  if (!box || !menu) return;
+  makeRich(box);
+  const close = () => { menu.hidden = true; };
+  // 游標前面那段「@關鍵字」
+  const ctx = () => {
+    const sel = getSelection();
+    if (!sel.rangeCount || !box.contains(sel.anchorNode) || sel.anchorNode.nodeType !== 3) return null;
+    const n = sel.anchorNode, off = sel.anchorOffset;
+    const m = n.data.slice(0, off).match(/@([^\s@]*)$/);
+    return m ? { node: n, start: off - m[0].length, end: off, q: m[1].toLowerCase() } : null;
+  };
+  box.addEventListener("input", () => {
+    const c = ctx();
+    if (!c || !assets.length) { close(); return; }
+    const list = assets.filter((a) => !c.q || a.label.toLowerCase().includes(c.q) || (a.name || "").toLowerCase().includes(c.q));
+    if (!list.length) { close(); return; }
+    menu.innerHTML = list.map((a) =>
+      '<button class="at-item" data-aid="' + a.id + '"><img src="/api/assets/file/' + a.id + '" alt="">'
+      + "<span>" + esc(a.label) + "・" + esc(a.name || "") + "</span></button>").join("");
+    menu.hidden = false;
+    const r = document.createRange();
+    r.setStart(c.node, c.end); r.collapse(true);
+    const rr = r.getBoundingClientRect(), wr = box.parentElement.getBoundingClientRect();
+    menu.style.left = Math.max(0, Math.min(rr.left - wr.left, wr.width - 296)) + "px";
+    menu.style.top = (rr.bottom - wr.top + 6) + "px";
+  });
+  menu.addEventListener("mousedown", (e) => e.preventDefault());  // 點選單時不要讓輸入框失焦，才找得到游標位置
+  menu.addEventListener("click", (e) => {
+    const b = e.target.closest(".at-item");
+    if (!b) return;
+    const a = assets.find((x) => x.id === b.dataset.aid);
+    const c = ctx();
+    if (!a || !c) { close(); return; }
+    const range = document.createRange();
+    range.setStart(c.node, c.start); range.setEnd(c.node, c.end);
+    range.deleteContents();
+    const space = document.createTextNode(" ");
+    const pill = document.createElement("span");
+    pill.innerHTML = refPill(a.index);
+    range.insertNode(space);
+    range.insertNode(pill.firstChild);
+    const sel = getSelection();
+    sel.collapse(space, 1);
+    close();
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  box.addEventListener("blur", () => setTimeout(close, 200));
+}
+
+/* ---------- 事件 ---------- */
+document.addEventListener("click", async (e) => {
+  const closer = e.target.closest("[data-close-modal]");
+  if (closer) { closer.closest(".modal").hidden = true; return; }
+  if (e.target.classList && e.target.classList.contains("modal")) { e.target.hidden = true; return; }
+
+  const nav = e.target.closest("[data-route]");
+  if (nav) { location.hash = "#/" + nav.dataset.route; $("#sidebar").classList.remove("open"); return; }
+
+  const act = e.target.closest("[data-act]");
+  if (act) {
+    const row = e.target.closest("tr[data-id]");
+    const id = row ? Number(row.dataset.id) : 0;
+    if (act.dataset.act === "open") openWorker(id);
+    else if (act.dataset.act === "grab") grabWorker(id);
+    else if (act.dataset.act === "login") loginWorker(id);
+    else if (act.dataset.act === "close") closeWorker(id);
+    else if (act.dataset.act === "cred") copyCred(id);
+    return;
+  }
+
+  const totp = e.target.closest(".totp");
+  if (totp) { copyTOTP(Number(totp.dataset.wid)); return; }
+
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    const name = del.dataset.del;
+    if (del.dataset.armed === "1") {
+      try {
+        const r = await api("/api/outputs/delete", { method: "POST", body: JSON.stringify({ text: name }) });
+        toast(r.success ? "已刪除這個圖檔" : ("刪除失敗：" + (r.error || "")), r.success ? "ok" : "err");
+        pollOutputs(); pollJobs();
+      } catch (err) { toast("刪除失敗：" + err.message, "err"); }
+    } else {
+      del.dataset.armed = "1";
+      del.innerHTML = "確定?";
+      del.style.color = "var(--negative)";
+      setTimeout(() => {
+        if (del.dataset.armed === "1") { del.dataset.armed = "0"; del.innerHTML = ICON_X; del.style.color = ""; }
+      }, 3000);
+    }
+    return;
+  }
+
+  const img = e.target.closest("img[data-file]");
+  if (img) {
+    const f = state.outputs.find((x) => x.name === img.dataset.file);
+    const pm = promptMap();
+    $("#lightboxImg").src = "/api/outputs/file/" + encodeURIComponent(img.dataset.file);
+    $("#lightboxImg").alt = pm[img.dataset.file] || img.dataset.file;
+    $("#lightboxPrompt").textContent = pm[img.dataset.file] || img.dataset.file;
+    $("#lightboxMeta").textContent = f ? clockOf(f.mtime) + "・" + nf.format(f.size_kb) + " KB" : "";
+    $("#lightbox").hidden = false;
+    return;
+  }
+  if (e.target.closest("#lightbox")) { $("#lightbox").hidden = true; }
+});
+
+$("#lightbox").addEventListener("click", (e) => { if (e.target.id === "lightbox") $("#lightbox").hidden = true; });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    $("#lightbox").hidden = true;
+    $$(".modal").forEach((m) => (m.hidden = true));
+  }
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && document.activeElement === $("#prompt")) generate();
+});
+$("#btnGen").addEventListener("click", generate);
+$("#btnRefresh").addEventListener("click", () => { pollWorkers(); pollJobs(); pollOutputs(); pollAccounts(); toast("已重新整理"); });
+$("#btnMenu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+$("#btnStopAll2").addEventListener("click", stopAll);
+$$("[data-act='folder']").forEach((b) => b.addEventListener("click", async () => {
+  try { await api("/api/open_folder", { method: "POST" }); } catch (e) {}
+}));
+$$("[data-act='stopall']").forEach((b) => b.addEventListener("click", stopAll));
+$$("[data-act='copyAgent']").forEach((b) => b.addEventListener("click", () => copyText(AGENT_GUIDE, "用法已複製，貼給 agent 即可")));
+$("#btnOptimize").addEventListener("click", () => optimizePrompt("prompt"));
+$("#btnLibrary").addEventListener("click", openLibrary);
+$("#btnAgentSettings") && $("#btnAgentSettings").addEventListener("click", openAgentSettings);
+$$("[data-act='agentSettings']").forEach((b) => b.addEventListener("click", openAgentSettings));
+$("#btnRescan").addEventListener("click", () => scanAgents(true));
+$("#btnAddProv").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/agent/provider/add", { method: "POST", body: JSON.stringify({ name: $("#addName").value, base_url: $("#addBase").value }) });
+    if (!r.success) throw new Error(r.error || "未知錯誤");
+    $("#addName").value = ""; $("#addBase").value = "";
+    await applyListing(r, "已新增，貼上 API key 後按「儲存並偵測模型」");
+  } catch (err) { setMsg("新增失敗：" + err.message, true); }
+});
+$("#provRestore").addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-restore]");
+  if (!a) return;
+  try {
+    const r = await api("/api/agent/provider/restore", { method: "POST", body: JSON.stringify({ provider: a.dataset.restore }) });
+    await applyListing(r, "已還原");
+    scanAgents();
+  } catch (err) { setMsg("還原失敗：" + err.message, true); }
+});
+$("#provTabs").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-ptab]");
+  if (!t) return;
+  agentTab = t.dataset.ptab;
+  renderProviders();
+});
+$("#provList").addEventListener("input", (e) => {
+  const k = draftKey(e.target);
+  if (k) agentDraft[k] = e.target.value;
+});
+async function applyListing(r, msg) {
+  agentProviders = r.providers || agentProviders;
+  agentActive = r.active || "";
+  agentHidden = r.hidden || [];
+  setMsg(msg);
+  renderProviders();
+}
+$("#provList").addEventListener("click", async (e) => {
+  const del = e.target.closest("[data-del-prov]");
+  if (del) {
+    const id = del.dataset.delProv;
+    const p = agentProviders.find((x) => x.id === id) || {};
+    if (!del.classList.contains("armed")) {  // 第一下只是「武裝」，3 秒內再按一次才真的刪
+      del.classList.add("armed");
+      del.textContent = p.has_key ? "連 key 一起刪？" : "確定刪除？";
+      setTimeout(() => { if (del.isConnected) { del.classList.remove("armed"); del.innerHTML = '<svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8"/></svg>'; } }, 3000);
+      return;
+    }
+    try {
+      const r = await api("/api/agent/provider/delete", { method: "POST", body: JSON.stringify({ provider: id }) });
+      if (!r.success) throw new Error(r.error || "未知錯誤");
+      ["base", "key", "model"].forEach((f) => delete agentDraft[f + ":" + id]);
+      await applyListing(r, "已刪除 " + (p.name || id));
+    } catch (err) { setMsg("刪除失敗：" + err.message, true); }
+    return;
+  }
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { copyText(cp.dataset.copy, "安裝指令已複製"); return; }
+  const b = e.target.closest("[data-act]");
+  if (!b || b.disabled || !ACT_PATH[b.dataset.act]) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  const val = (f) => { const el = $("#provList [" + DRAFT_ATTR[f] + '="' + id + '"]'); return el ? el.value : ""; };
+  const body = { provider: id };
+  if (act === "save") Object.assign(body, { base_url: val("base"), api_key: val("key"), model: val("model") });
+  if (act === "test") body.model = val("model");
+  const name = (agentProviders.find((p) => p.id === id) || {}).name || id;
+  agentBusy[id] = act;
+  setMsg(name + " " + ACT_LABEL[act] + "中…");
+  renderProviders();
+  let ok = false;
+  try {
+    const r = await api(ACT_PATH[act], { method: "POST", body: JSON.stringify(body) });
+    if (r.provider) upsertProvider(r.provider);
+    const p = r.provider || {};
+    ok = !!r.success;
+    if (!ok) setMsg(name + " " + ACT_LABEL[act] + "失敗：" + (r.error || "未知錯誤"), true);
+    else if (act === "test") setMsg(name + " 可用：" + (r.reply || "").slice(0, 60));
+    else if (act === "save") setMsg("已儲存，" + name + (p.connected ? " 已連接" : "") + (p.models && p.models.length ? "，可用模型 " + p.models.length + " 個" : ""));
+    else setMsg(name + "：" + (p.connected ? "已連接" : "未連接") + (p.model ? "，模型 " + p.model : ""));
+  } catch (err) { setMsg(name + " " + ACT_LABEL[act] + "失敗：" + err.message, true); }
+  delete agentBusy[id];
+  if (ok && act === "save") delete agentDraft["key:" + id];
+  if (ok && (act === "save" || act === "detect")) delete agentDraft["model:" + id];
+  renderProviders();
+});
+$("#provList").addEventListener("change", async (e) => {
+  const k = draftKey(e.target);
+  if (k) {
+    agentDraft[k] = e.target.value;
+    if (k.startsWith("model:")) api("/api/agent/select", { method: "POST", body: JSON.stringify({ provider: k.slice(6), model: e.target.value || "__default__", enabled: false }) }).catch(() => {});
+    return;
+  }
+  const radio = e.target.closest("input[name='activeProv']");
+  if (!radio) return;
+  setMsg("切換中…");
+  try {
+    const r = await api("/api/agent/select", { method: "POST", body: JSON.stringify({ provider: radio.value, model: agentDraft["model:" + radio.value] || "" }) });
+    if (!r.success) throw new Error(r.error || "未知錯誤");
+    agentActive = r.active || radio.value;
+    setMsg("");
+  } catch (err) { setMsg("切換失敗：" + err.message, true); }
+  renderProviders();
+});
+$("#chipRow").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-chip]");
+  if (!b) return;
+  const a = assets.find((x) => x.id === b.dataset.chip);
+  if (!a) return;
+  const box = $("#prompt");
+  box.value = box.value.replace(new RegExp("@" + a.label + "\\s*", "g"), "");
+  renderChips();
+});
+$("#libSearch").addEventListener("input", (e) => {
+  clearTimeout(window.__libTimer);
+  const v = e.target.value;
+  window.__libTimer = setTimeout(() => loadLibCases(v), 280);
+});
+$$(".lib-tab").forEach((t) => t.addEventListener("click", () => {
+  $$(".lib-tab").forEach((x) => x.classList.toggle("is-on", x === t));
+  const site = t.dataset.lib === "site";
+  $("#libCases").hidden = site;
+  $("#libSite").hidden = !site;
+  $("#libSearch").style.visibility = site ? "hidden" : "visible";
+}));
+$("#libCases").addEventListener("click", (e) => {
+  const b = e.target.closest(".lib-case");
+  if (!b) return;
+  const c = libCases[Number(b.dataset.i)];
+  if (!c) return;
+  $("#prompt").value = c.prompt;
+  renderChips();
+  copyText(c.prompt, "提示詞已複製");
+  $("#libModal").hidden = true;
+  toast("已帶入提示詞");
+});
+setupAtMenu("prompt", "atMenu");
+setupAtMenu("embedPrompt", "atMenu2");
+$("#btnOptimize2").addEventListener("click", () => optimizePrompt("embedPrompt"));
+$("#assetList").addEventListener("click", (e) => {
+  const b = e.target.closest(".ab");
+  if (!b) return;
+  if (b.dataset.act === "up") moveAsset(b.dataset.id, -1);
+  else if (b.dataset.act === "down") moveAsset(b.dataset.id, 1);
+  else if (b.dataset.act === "del") deleteAsset(b.dataset.id);
+});
+$("#assetList").addEventListener("change", (e) => {
+  if (e.target.id === "assetFile") { uploadAsset(e.target.files[0]); e.target.value = ""; }
+});
+$("#embedAccounts").addEventListener("click", (e) => {
+  const b = e.target.closest(".acct");
+  if (!b) return;
+  const id = Number(b.dataset.wid);
+  if (id === embed.worker && embed.open) return;
+  $("#selEmbedWorker").value = String(id);
+  embedOpen(id);
+});
+$("#accountsFile").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  importAccounts(f);
+});
+$("#btnLoginAll").addEventListener("click", loginAll);
+$("#btnEmbedClose").addEventListener("click", embedClose);
+$("#btnEmbedType").addEventListener("click", embedType);
+$("#btnEmbedSend").addEventListener("click", embedSend);
+$("#btnEmbedGrab").addEventListener("click", embedGrab);
+$("#embedImg").addEventListener("click", embedClick);
+window.addEventListener("hashchange", () => {
+  const r = (location.hash || "#/gen").replace("#/", "");
+  state.route = ROUTES[r] ? r : "gen";
+  render();
+  if (state.route === "embed" && !embed.open) embedOpen();
+});
+
+/* ---------- 啟動 ---------- */
+(async function init() {
+  state.route = ROUTES[(location.hash || "#/gen").replace("#/", "")] ? (location.hash || "#/gen").replace("#/", "") : "gen";
+  await Promise.allSettled([pollWorkers(), pollJobs(), pollOutputs()]);
+  await pollAccounts();
+  state.lastUpdate = Math.floor(Date.now() / 1000);
+  render();
+  setInterval(() => { const t = Math.floor(Date.now() / 1000); if (t % 5 === 0) pollWorkers(); }, 1000);
+  setInterval(pollJobs, 4000);
+  setInterval(pollOutputs, 30000);
+  loadAssets();
+  setInterval(pollAccounts, 30000);
+  setInterval(() => { state.lastUpdate = Math.floor(Date.now() / 1000); renderKpis(); renderRoster(); }, 1000);
+})();
+</script>
+<link rel="stylesheet" href="/character/character.css">
+<script src="/character/compose.js"></script>
+<script src="/character/character.js"></script>
+</body>
+</html>

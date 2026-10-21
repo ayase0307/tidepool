@@ -1,0 +1,223 @@
+/* 角色設計頁樣式。沿用 panel.html 的 CSS 變數與既有 class（.panel .btn .control .badge .modal 等），
+   自家樣式一律 ch- 前綴；不新增字型、不新增顏色。accent 只用在選取狀態與 1px 強調線。 */
+
+/* ---------- 標題列、快速開始 ---------- */
+#charApp{min-width:0}
+#charApp .ch-quick{display:grid;gap:12px}
+#charApp .ch-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+#charApp .ch-label{font-size:var(--fs-small);color:var(--muted);min-width:4.5em}
+#charApp .ch-presets{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+#charApp .ch-picker{flex:1 1 200px;max-width:320px;min-width:0;height:var(--control-height)}
+
+/* ---------- 兩欄版面 ---------- */
+#charApp .ch-cols{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:var(--gap);align-items:start;margin-top:var(--section-gap)}
+#charApp .ch-side{position:sticky;top:24px;display:grid;gap:12px;align-content:start;min-width:0}
+#charApp .ch-form{min-width:0}
+#charApp .ch-assets{margin-top:var(--section-gap)}
+@media (max-width:1099px){
+  #charApp .ch-cols{grid-template-columns:minmax(0,1fr)}
+  #charApp .ch-side{position:static}
+}
+
+/* ---------- 可收合區段（高度動畫用 grid-template-rows 0fr→1fr） ---------- */
+#charApp .ch-sec{border-top:1px solid var(--rule)}
+#charApp .ch-sec:first-of-type{border-top:0}
+#charApp .ch-sec-head{width:100%;display:flex;align-items:center;gap:10px;padding:12px 0;background:none;border:0;color:var(--text);font-size:14px;font-weight:600;text-align:left;cursor:pointer}
+#charApp .ch-sec-title{flex:1 1 auto;min-width:0}
+#charApp .ch-count{min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:inline-grid;place-items:center;font-size:11px;color:var(--muted);background:var(--raised)}
+#charApp .ch-count:empty{display:none}
+#charApp .ch-count.on{color:var(--text);background:var(--control)}
+#charApp .ch-chev{width:12px;height:12px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease-out)}
+#charApp .ch-sec.open .ch-chev{transform:rotate(180deg)}
+#charApp .ch-sec-body{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .2s var(--ease-out),visibility .2s}
+#charApp .ch-sec.open .ch-sec-body{grid-template-rows:1fr;visibility:visible}
+#charApp .ch-sec-inner{min-height:0;overflow:clip;overflow-clip-margin:6px}
+#charApp .ch-sec-pad{display:grid;gap:14px;padding-bottom:18px}
+#charApp .ch-aiwrap{border-top:1px solid var(--rule)}
+
+/* ---------- 欄位與輸入 ---------- */
+.ch-field{display:grid;gap:6px;min-width:0}
+#charApp .ch-subhead{font-size:var(--fs-small);color:var(--muted)}
+.ch-input{width:100%;height:34px;padding:0 11px;background:var(--ground);color:var(--text);border:1px solid var(--border);border-radius:6px;font:inherit;font-size:13px;outline:0;transition:border-color .2s ease,box-shadow .35s var(--ease-out)}
+.ch-input::placeholder{color:var(--faint)}
+.ch-input:focus-visible{border-color:var(--accent)}
+textarea.ch-input{height:auto;min-height:64px;padding:9px 11px;line-height:1.55;resize:vertical}
+#charApp .ch-search{height:30px;font-size:12.5px}
+#charApp .ch-dname{height:40px;font-size:18px;font-weight:600;padding:0 10px}
+
+/* 單選／二選一的分段按鈕 */
+#charApp .ch-seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+#charApp .ch-seg button{height:30px;padding:0 14px;border:1px solid var(--control);border-radius:999px;background:var(--ground);color:var(--muted);font-size:var(--fs-small);cursor:pointer;transition:color .15s ease,border-color .15s ease,background-color .15s ease}
+#charApp .ch-seg button:hover{color:var(--text)}
+#charApp .ch-seg button[aria-pressed="true"]{color:var(--text);border-color:var(--accent);background:var(--raised)}
+
+/* 詞條 pill */
+#charApp .ch-pills{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+#charApp .ch-pill{height:28px;max-width:100%;padding:0 11px;border:1px solid var(--control);border-radius:999px;background:var(--ground);color:var(--muted);font:inherit;font-size:12.5px;text-align:left;overflow-wrap:anywhere;cursor:pointer;transition:color .15s ease,border-color .15s ease,background-color .15s ease}
+#charApp .ch-pill:hover{color:var(--text);border-color:var(--faint)}
+#charApp .ch-pill[aria-pressed="true"]{color:#fff;border-color:var(--accent);background:var(--raised);box-shadow:inset 0 0 0 1px var(--accent)}
+#charApp .ch-pill.is-x{opacity:.6;border-style:dashed}
+#charApp .ch-pill.just{animation:ch-pick .24s var(--ease-out)}
+@keyframes ch-pick{from{transform:scale(.94)}to{transform:scale(1)}}
+#charApp .ch-group{display:grid;gap:8px;min-width:0}
+#charApp .ch-ghead{display:flex;align-items:baseline;gap:8px}
+#charApp .ch-glabel{font-size:var(--fs-small);color:var(--text)}
+#charApp .ch-gmode{font-size:11px;color:var(--faint)}
+#charApp .ch-gcount{margin-left:auto;font-size:11px;color:var(--muted)}
+#charApp .ch-gcount:empty{display:none}
+#charApp .ch-gfoot{display:flex;gap:12px;flex-wrap:wrap}
+#charApp .ch-gfoot:empty{display:none}
+#charApp .ch-none{font-size:var(--fs-small);color:var(--faint)}
+#charApp .ch-link{background:none;border:0;padding:0;color:var(--muted);font:inherit;font-size:var(--fs-small);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--control)}
+#charApp .ch-link:hover{color:var(--text)}
+#charApp .ch-more{font-size:var(--fs-small)}
+#charApp .ch-more summary{cursor:pointer;color:var(--muted);list-style:none}
+#charApp .ch-more summary::-webkit-details-marker{display:none}
+#charApp .ch-more summary::before{content:"+ ";font-family:var(--font-mono)}
+#charApp .ch-more[open] summary::before{content:"− "}
+#charApp .ch-more-body{margin-top:12px}
+
+/* 版式卡片 */
+#charApp .ch-layouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+#charApp .ch-layout{display:grid;gap:8px;justify-items:center;padding:10px 6px;border:1px solid var(--border);border-radius:var(--radius-card);background:var(--ground);color:var(--muted);font:inherit;font-size:var(--fs-small);cursor:pointer;transition:color .15s ease,border-color .2s ease,transform .25s var(--ease-out)}
+#charApp .ch-layout svg{width:100%;max-width:72px;height:auto}
+#charApp .ch-layout:hover{color:var(--text)}
+#charApp .ch-layout[aria-pressed="true"]{color:var(--text);border-color:var(--accent);transform:translateY(-1px)}
+#charApp .ch-ldesc{font-size:var(--fs-small);color:var(--faint);line-height:1.6;font-variant-numeric:tabular-nums}
+
+/* 參考圖 */
+#charApp .ch-refs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+#charApp .ch-refs > .empty{grid-column:1 / -1}
+#charApp .ch-ref{display:grid;gap:4px;justify-items:start;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--ground);color:var(--muted);font:inherit;font-size:11.5px;cursor:pointer;transition:color .15s ease,border-color .2s ease}
+#charApp .ch-ref img{width:100%;aspect-ratio:1 / 1;object-fit:cover;border-radius:4px;background:var(--surface)}
+#charApp .ch-ref:hover{color:var(--text)}
+#charApp .ch-ref[aria-pressed="true"]{color:var(--text);border-color:var(--accent)}
+
+/* ---------- 右欄：提示詞 ---------- */
+#charApp .ch-badges{display:flex;gap:6px;flex-wrap:wrap}
+#charApp .ch-promptbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#charApp .ch-prompt{width:100%;min-height:260px;resize:vertical;padding:12px 14px;background:var(--ground);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;outline:0;transition:border-color .2s ease,box-shadow .35s var(--ease-out)}
+#charApp .ch-prompt:focus-visible{border-color:var(--accent)}
+#charApp .ch-prompt:not([readonly]){border-color:var(--control)}
+#charApp .ch-warn{display:grid;gap:4px;font-size:var(--fs-small);color:var(--faint);line-height:1.5}
+#charApp .ch-warn li::before{content:"· "}
+#charApp .ch-polish{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center}
+#charApp .ch-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#charApp .ch-actions .btn.primary{margin-left:auto}
+#charApp .ch-job{display:grid;gap:6px}
+#charApp .ch-job-row{display:flex;align-items:center;gap:10px}
+#charApp .ch-bar{flex:1 1 auto;height:2px;background:var(--control);border-radius:2px;overflow:hidden}
+#charApp .ch-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s var(--ease-out)}
+#charApp .ch-err{font-size:var(--fs-small);color:var(--negative);line-height:1.5}
+
+/* ---------- 角色資產格 ---------- */
+#charApp .ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+#charApp .ch-grid > .empty{grid-column:1 / -1}
+#charApp .ch-card{display:grid;gap:10px;padding:0;background:var(--raised);border:1px solid var(--rule);border-radius:var(--radius-card);color:var(--text);font:inherit;text-align:left;cursor:pointer;overflow:hidden;transition:transform .35s var(--ease-out),border-color .2s ease}
+#charApp .ch-card:hover{transform:translateY(-2px);border-color:var(--control)}
+#charApp .ch-card.is-current{border-color:var(--accent)}
+#charApp .ch-thumb{position:relative;display:block;aspect-ratio:16 / 9;background:var(--surface)}
+#charApp .ch-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+#charApp .ch-ph{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;color:var(--faint);font-size:var(--fs-small);border:1px dashed var(--control)}
+#charApp .ch-ph svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+#charApp .ch-cardbody{display:grid;gap:4px;padding:0 12px 12px;min-width:0}
+#charApp .ch-cname{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#charApp .ch-cardbody .badge{justify-self:start}
+
+/* ---------- 角色詳情視窗（#chModal，沿用 .modal） ---------- */
+.ch-detail{display:grid;gap:16px;max-width:880px}
+.ch-dhead{display:grid;gap:10px}
+.ch-dimgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ch-dimgs .ch-dimg:first-child{grid-column:1 / -1}
+.ch-dimgs .ch-dimg:first-child .ch-dimgbtn img{object-fit:contain;background:var(--ground)}
+.ch-dimgs .ch-dtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ch-dimgs > .empty{grid-column:1 / -1}
+.ch-dimg{display:grid;gap:8px;min-width:0;margin:0}
+.modal-box.ch-detail{max-width:960px}
+.ch-dimgbtn{display:block;padding:0;border:0;background:none;border-radius:6px;overflow:hidden;cursor:zoom-in}
+.ch-dimgbtn img{width:100%;aspect-ratio:16 / 9;object-fit:cover;display:block;background:var(--surface);transition:transform .35s var(--ease-out)}
+.ch-dimgbtn:hover img{transform:scale(1.015)}
+.ch-dtools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ch-dactions{display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--rule)}
+.ch-del.armed{color:var(--negative);border-color:var(--negative);background:var(--pill-negative-bg)}
+.ch-detail .x-btn{width:auto;min-width:26px}
+
+/* 「確認刪除」等兩段按鈕的進場 */
+#charApp .armed,.ch-detail .armed{animation:ch-pop .25s var(--ease-out)}
+@keyframes ch-pop{0%{transform:scale(.96);opacity:.6}100%{transform:scale(1);opacity:1}}
+
+/* 燈箱要蓋在角色詳情視窗之上（panel.html 原本 z-index 60，modal 是 80） */
+#lightbox{z-index:90}
+
+/* ---------- 手機寬度 ---------- */
+@media (max-width:640px){
+  #charApp .ch-polish{grid-template-columns:minmax(0,1fr)}
+  #charApp .ch-polish .btn{width:100%}
+  #charApp .ch-actions .btn{flex:1 1 auto}
+  #charApp .ch-actions .btn.primary{margin-left:0}
+  #charApp .ch-picker{max-width:none;flex-basis:100%}
+  #charApp .ch-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+/* 手動編輯：看得出來是個開關 */
+.ch-toggle{display:inline-flex;align-items:center;gap:8px;padding:0;border:0;background:none;color:var(--muted);font:inherit;font-size:var(--fs-small);cursor:pointer;transition:color .15s ease}
+.ch-toggle i{position:relative;width:26px;height:14px;border-radius:999px;background:var(--control);transition:background-color .2s ease}
+.ch-toggle i::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--text);transition:transform .22s var(--ease-out)}
+.ch-toggle[aria-pressed="true"]{color:var(--text)}
+.ch-toggle[aria-pressed="true"] i{background:var(--accent)}
+.ch-toggle[aria-pressed="true"] i::after{transform:translateX(12px)}
+.ch-quick .ch-aiwrap{margin-top:10px}
+
+/* ===== 版面：角色資產橫列（永遠看得到）＋ 左設定 ＋ 右舞台 ===== */
+#charApp .ch-library{margin-bottom:var(--gap)}
+#charApp .ch-strip{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px;scroll-snap-type:x proximity}
+#charApp .ch-tile{position:relative;flex:0 0 200px;display:grid;background:var(--raised);border:1px solid var(--rule);border-radius:var(--radius-card);overflow:hidden;color:var(--text);scroll-snap-align:start;transition:border-color .2s ease,transform .3s var(--ease-out)}
+#charApp .ch-tile:hover{border-color:var(--control);transform:translateY(-2px)}
+#charApp .ch-tile.is-current{border-color:var(--accent)}
+#charApp .ch-tilemain{display:grid;gap:8px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0}
+#charApp .ch-tile .ch-thumb{aspect-ratio:4 / 3;background:var(--ground)}
+#charApp .ch-tile .ch-thumb img{object-fit:contain}
+#charApp .ch-tile .ch-thumb .badge{position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px}
+#charApp .ch-tile .ch-cardbody{padding:0 12px 11px}
+#charApp .ch-tilemenu{position:absolute;top:6px;right:6px;width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:var(--radius-chip);background:rgba(19,18,23,.8);color:var(--muted);cursor:pointer;opacity:0;transition:opacity .15s ease,color .15s ease}
+#charApp .ch-tilemenu svg{width:14px;height:14px;fill:currentColor}
+#charApp .ch-tile:hover .ch-tilemenu,#charApp .ch-tilemenu:focus-visible{opacity:1}
+#charApp .ch-tilemenu:hover{color:var(--text)}
+#charApp .ch-tile.ch-new{background:none;border-style:dashed;border-color:var(--control);color:var(--muted);cursor:pointer;font:inherit}
+#charApp .ch-tile.ch-new:hover{color:var(--text);border-color:var(--muted)}
+#charApp .ch-tile.ch-new .ch-ph{border:0}
+#charApp .ch-tile.ch-new .ch-ph svg{width:20px;height:20px}
+#charApp .ch-start{display:grid;gap:12px;padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--rule)}
+
+/* 舞台：圖完整顯示（直式橫式都不裁切），點一下放大 */
+#charApp .ch-stage{display:grid;gap:10px}
+#charApp .ch-shead{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+#charApp .ch-sname{font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#charApp .ch-sbox{position:relative;display:grid;place-items:center;width:100%;min-height:180px;padding:0;border:1px solid var(--rule);border-radius:var(--radius-card);background:var(--ground);cursor:zoom-in;overflow:hidden}
+#charApp .ch-sbox img{max-width:100%;max-height:min(52vh,460px);width:auto;height:auto;object-fit:contain;display:block}
+#charApp .ch-sempty{cursor:default}
+#charApp .ch-sempty .ch-ph{position:static;border:0;text-align:center;max-width:26ch}
+#charApp .ch-sbusy{position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--pill-positive-bg);color:var(--pill-positive-ink);font-size:var(--fs-small)}
+#charApp .ch-sbusy.on{position:static}
+#charApp .ch-sthumbs{display:flex;gap:8px;overflow-x:auto;padding:2px}
+#charApp .ch-sthumb{flex:0 0 64px;height:48px;padding:0;border:1px solid var(--rule);border-radius:var(--radius-chip);background:var(--ground);cursor:pointer;overflow:hidden;transition:border-color .15s ease}
+#charApp .ch-sthumb img{width:100%;height:100%;object-fit:contain;display:block}
+#charApp .ch-sthumb.on{border-color:var(--accent)}
+#charApp .ch-stools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#charApp .ch-side{max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain}
+#charApp .ch-phead{margin-top:6px;padding-top:14px;border-top:1px solid var(--rule)}
+#charApp .ch-prompt{min-height:150px;max-height:26vh}
+
+/* 詳情視窗與全站燈箱：直式圖也要看得到整張 */
+.ch-dimgs .ch-dimgbtn img,.ch-dimgs .ch-dimg:first-child .ch-dimgbtn img{object-fit:contain;aspect-ratio:auto;max-height:70vh;background:var(--ground)}
+.ch-dimgs .ch-dimg:first-child{grid-column:1 / -1}
+.lightbox .lb-inner img{max-height:calc(100vh - 170px);width:auto;max-width:100%;margin:0 auto;object-fit:contain}
+@media (max-width:1100px){
+  #charApp .ch-side{max-height:none;overflow:visible}
+  #charApp .ch-tile{flex-basis:164px}
+}
+
+/* 「新角色」磚：內容置中 */
+#charApp .ch-tile.ch-new{display:grid;place-items:center;align-content:center;min-height:100%}
+#charApp .ch-tile.ch-new .ch-thumb{aspect-ratio:auto;width:100%;height:100%;background:none;display:grid;place-items:center}
+#charApp .ch-tile.ch-new .ch-ph{position:static;border:0}

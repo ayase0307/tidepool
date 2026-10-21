@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-Pool 登入助手</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2331; --border: #2a3348;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+    --mono: 'Cascadia Code', Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', 'Microsoft JhengHei', sans-serif; padding: 28px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: .5px; }
+  h1 span { color: var(--accent); }
+  .desc { color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color .2s; }
+  .card:hover { border-color: #3d4c6b; }
+  .card.logged { border-left: 3px solid var(--ok); }
+  .card.nolog { border-left: 3px solid var(--warn); }
+  .head { display: flex; justify-content: space-between; align-items: center; }
+  .wname { font-weight: 700; font-size: 15px; }
+  .wstat { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--panel2); color: var(--muted); }
+  .wstat.on { color: var(--ok); }
+  .cred { display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+  .cred .lbl { font-size: 10px; color: var(--muted); width: 40px; flex-shrink: 0; }
+  .cred .val { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .cp { background: #21262d; color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; padding: 3px 10px; cursor: pointer; flex-shrink: 0; }
+  .cp:hover { background: #388bfd; border-color: #388bfd; }
+  .totp { display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #16213e 0%, #1a2740 100%); border: 1px solid #34467a; border-radius: 8px; padding: 8px 12px; }
+  .totp .code { font-family: var(--mono); font-size: 24px; letter-spacing: 4px; color: #d2a8ff; font-weight: 700; flex: 1; }
+  .ring { position: relative; width: 34px; height: 34px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .rem { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  .foot { display: flex; gap: 8px; margin-top: 2px; }
+  .act { flex: 1; text-align: center; background: #21262d; border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 12px; padding: 7px 0; cursor: pointer; text-decoration: none; }
+  .act.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; font-weight: 600; }
+  .act.primary:hover { background: #388bfd; }
+  .act:hover { background: #30363d; color: #fff; }
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: #238636; color: #fff; padding: 9px 22px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 9; }
+  .toast.show { opacity: 1; }
+  .hint { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+  kbd { background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 11px; }
+  .refresh { color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI-Pool <span>登入助手</span></h1>
+  <div class="desc">點「複製」直接進剪貼簿 — 帳號 / 密碼 / 2FA 動態碼（30 秒輪換）</div>
+</header>
+<div class="grid" id="grid">載入中…</div>
+<div class="hint">
+  <b>建議流程</b>：在瀏覽器（或今日稍後的桌面程式內嵌視窗）開啟 <kbd>chatgpt.com</kbd> 登入頁 →
+  貼上帳號 → 貼上密碼 → 出現 2FA 欄位時，點「複製驗證碼」立即貼上。
+  <br>驗證碼每 30 秒換新；<span style="color:var(--warn)">倒數 ≤ 5 秒</span>時建議等下一組再複製，避免輸入中途過期。
+  本頁面只讀取本機服務（127.0.0.1:7707），不會連上任何外部網址。
+  <span class="refresh" id="refreshed"></span>
+</div>
+<div class="toast" id="toast">已複製</div>
+<script>
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1300);
+}
+async function copyToClipboard(text, label) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  toast(label + ' 已複製');
+}
+function ringHTML(rem) {
+  const r = 13, c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(30, rem)) / 30;
+  const col = rem <= 5 ? '#f85149' : rem <= 10 ? '#d29922' : '#3fb950';
+  return `<div class="ring"><svg width="34" height="34">
+    <circle cx="17" cy="17" r="${r}" stroke="#2a3348" stroke-width="3.5" fill="none"/>
+    <circle cx="17" cy="17" r="${r}" stroke="${col}" stroke-width="3.5" fill="none"
+      stroke-dasharray="${c}" stroke-dashoffset="${(c * (1 - pct)).toFixed(1)}" stroke-linecap="round"/>
+  </svg><div class="rem">${String(rem).padStart(2, '0')}</div></div>`;
+}
+let ACCTS = [];
+let TOTP_STATE = {};  // worker_id -> {code, remaining, syncedAtEpoch}
+async function refreshAccounts() {
+  try {
+    const res = await fetch('/api/accounts');
+    const data = await res.json();
+    ACCTS = data.accounts || [];
+    for (const a of ACCTS) {
+      const prev = TOTP_STATE[a.worker_id];
+      if (!prev || Date.now() - prev.fetched > 8000) {
+        TOTP_STATE[a.worker_id] = { code: (a.totp && a.totp.code) || '------', remaining: (a.totp && a.totp.remaining) || 30, fetched: Date.now(), secretFine: true };
+      }
+      a._pwd = a.password || '';
+    }
+    render();
+    document.getElementById('refreshed').textContent = ' · 更新 ' + new Date().toLocaleTimeString('zh-TW', { hour12: false });
+  } catch (e) {
+    document.getElementById('grid').textContent = '無法連線本機服務（127.0.0.1:7707）— 請確認 AI-Pool 服務已啟動';
+  }
+}
+function render() {
+  document.getElementById('grid').innerHTML = ACCTS.map(a => {
+    const logged = a.last_login_ok;
+    const st = TOTP_STATE[a.worker_id] || { code: '------', remaining: 0 };
+    return `<div class="card ${logged ? 'logged' : 'nolog'}" data-wid="${a.worker_id}">
+      <div class="head">
+        <div class="wname">${a.name}</div>
+        <div class="wstat ${logged ? 'on' : ''}">${logged ? '已登入' : '未登入'} · 累計 ${a.total_generated} 張</div>
+      </div>
+      <div class="cred"><span class="lbl">帳號</span><span class="val">${a.email}</span>
+        <button class="cp" data-txt="${a.email}" data-lb="帳號">複製</button></div>
+      <div class="cred"><span class="lbl">密碼</span><span class="val">${a._pwd ? '••••••••••' : '（無）'}</span>
+        <button class="cp" data-txt="${a._pwd.replace(/"/g, '&quot;')}" data-lb="密碼">複製</button></div>
+      <div class="totp">
+        <div class="code" id="totp-${a.worker_id}">${st.code}</div>
+        <button class="cp" data-txt="${st.code}" data-lb="驗證碼" data-code-btn="1">複製</button>
+        ${ringHTML(st.remaining)}
+      </div>
+      <div class="foot">
+        <a class="act primary" href="https://chatgpt.com/" target="_blank">開啟 ChatGPT</a>
+        <a class="act" href="https://chatgpt.com/auth/login" target="_blank">登入頁</a>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.cp').forEach(b => {
+    b.onclick = () => copyToClipboard(b.dataset.txt.replace(/&quot;/g, '"'), b.dataset.lb);
+  });
+}
+// 1s tick: countdown; when hits 0, refresh codes from server
+setInterval(() => {
+  let needSync = false;
+  for (const a of ACCTS) {
+    const s = TOTP_STATE[a.worker_id];
+    if (!s) continue;
+    s.remaining -= 1;
+    if (s.remaining <= 0) { needSync = true; s.remaining = 30; }
+    const el = document.getElementById('totp-' + a.worker_id);
+    if (el) el.textContent = s.code;
+    const ringEl = el && el.parentElement.querySelector('.ring');
+    if (ringEl) {
+      const nrem = s.remaining;
+      const r = 13, c = 2 * Math.PI * r, pct = Math.max(0, Math.min(30, nrem)) / 30;
+      const col = nrem <= 5 ? '#f85149' : nrem <= 10 ? '#d29922' : '#3fb950';
+      const circles = ringEl.querySelectorAll('circle');
+      circles[1].setAttribute('stroke', col);
+      circles[1].setAttribute('stroke-dashoffset', (c * (1 - pct)).toFixed(1));
+      ringEl.querySelector('.rem').textContent = String(nrem).padStart(2, '0');
+      const cpBtn = el.parentElement.querySelector('[data-code-btn="1"]');
+      if (cpBtn && s.code) cpBtn.dataset.txt = s.code;
+    }
+  }
+  if (needSync) refreshAccounts();
+}, 1000);
+refreshAccounts();
+</script>
+</body>
+</html>
