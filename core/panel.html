@@ -1231,35 +1231,50 @@ async function pollOutputs() {
 /* ---------- 手動台：內嵌 ChatGPT ---------- */
 const embed = { worker: 0, open: false, timer: null };
 
-const AGENT_GUIDE = `# AI-Pool：這台電腦上的 ChatGPT 號池（10 個帳號，各自有獨立的瀏覽器 profile）
+/* 「複製用法給 agent」：每次複製時依目前狀態現場產生（帳號數、已登入數、剩餘額度、服務網址都是即時的） */
+function buildAgentGuide() {
+  const ws = state.workers || [];
+  const ok = ws.filter((w) => w.last_login_ok).length;
+  const quota = ws.reduce((n, w) => n + (Number(w.quota_left) || 0), 0);
+  const B = location.origin;
+  return `# Tidepool：這台電腦上的 ChatGPT 出圖服務
+目前 ${ws.length} 個帳號、${ok} 個已登入、剩餘額度約 ${nf.format(quota)} 張。服務網址：${B}
+只在本機（127.0.0.1）可用，圖片不會經過第三方。
 
-服務網址：http://127.0.0.1:7707
-認證：Authorization: Bearer aipool-local （自訂金鑰放 secrets/api_keys.txt，一行一個）
+## 出圖：三步
+1. 送出（回傳 id）
+   curl -X POST ${B}/v1/videos -H "Authorization: Bearer aipool-local" -H "Content-Type: application/json" -d '{"model":"gpt-image2-1k","prompt":"一隻柴犬在草地上奔跑，陽光","aspect_ratio":"16:9"}'
+   → {"id":"<task_id>","status":"queued"}
+2. 輪詢，每 5 秒一次，單張約 30～60 秒
+   curl ${B}/v1/tasks/<task_id> -H "Authorization: Bearer aipool-local"
+   status：queued → processing → completed 或 failed（failed 看 error_message，可重送一次）
+3. 取圖：completed 後 result.urls[0] 就是 PNG 網址，直接 GET 下載（不需要金鑰）
 
-## 出圖（NewAPI 相容，建議用這個）
-POST /v1/videos
-{"model": "gpt-image2-1k", "prompt": "你的提示詞", "aspect_ratio": "16:9", "style": ""}
-→ {"id": "<task_id>", "status": "queued"}
+## 欄位
+- prompt：必填。中文英文都可以，寫完整的畫面描述；不要加「請幫我畫」之類的客套話
+- aspect_ratio：16:9（預設）、1:1、9:16、4:3、3:4
+- model：gpt-image2-1k（預設）、gpt-image2-2k、gpt-image2-4k
+- style：選填，留空＝不套用；可填 concept_art / realistic / cyberpunk / anime / oil_painting / product，或直接寫一段英文風格描述
+- worker_id：選填，指定某個帳號。不指定就好，系統會挑剩餘額度最多、沒在被手動使用的帳號
 
-GET /v1/tasks/<task_id>
-→ {"status": "completed", "progress": 100,
-   "result": {"urls": ["http://127.0.0.1:7707/api/outputs/file/<name>.png"]}}
+## 並發與額度
+- 想要多張就同時送多筆，系統會自動分到不同帳號；同時進行的數量不要超過已登入的帳號數（${ok}）
+- 每個帳號有 999 張額度，用完要等重置；每筆任務產出 1 張
+- 先 GET ${B}/api/workers 看各帳號的 last_login_ok 與 quota_left；全部沒登入就先請使用者到控制台處理，不要一直重試
 
-style 可以留空（不套用任何風格），或填 preset：concept_art / realistic / cyberpunk / anime /
-oil_painting / product，也可以直接寫一段英文描述。aspect_ratio 會被接成一句英文描述送進提示詞。
+## 參考圖
+使用者在控制台的「資產」區放了參考圖，提示詞裡寫 @圖1、@圖2 就會自動附到 ChatGPT（編號見 GET ${B}/api/assets 的 label）。
+要自己放圖：POST ${B}/api/assets/upload {"filename":"a.png","data_b64":"<base64>"}，回傳的 assets 陣列裡看新圖的 label。
 
-## 並發與指定帳號
-同一個 prompt 對不同 worker_id（1..10）各送一次即可並發，實測 3 併發約 50 秒。
-每個帳號配額 999 張圖，用完要等配額重置。
+## 角色設定圖
+想要角色的四視圖設定圖，提示詞照這個結構寫會最穩：16:9 橫幅，四格等距；第一格頭到肩特寫，右邊三格正／側／背全身；均勻平光、純色背景、全部清晰；把髮色、髮型、瞳色、每件衣服逐項寫死，不要只寫「保持一致」。也可以請使用者到控制台的「角色設計」頁用選單組。
 
-## CLI
-C:\\AI-Pool\\venv\\Scripts\\python C:\\AI-Pool\\core\\generate.py "提示詞" -o out.png -w 3 --res 2k
-
-## 其他端點
-GET  /api/workers              帳號狀態、配額
-GET  /api/jobs?limit=24        工作紀錄
-GET  /api/outputs?limit=96     圖檔清單
-POST /api/agent/ping {"label":"你的名字"}   讓控制台顯示「agent 已連線」`;
+## 其他
+- 在專案目錄也可以用 CLI：python core/generate.py "提示詞" -o out.png -w 3（-w 是並發張數）
+- GET ${B}/api/jobs?limit=24 工作紀錄；GET ${B}/api/outputs 圖檔清單
+- 讓控制台知道有 agent 在用：POST ${B}/api/agent/ping {"label":"你的名字"}（選用）
+- 這是使用者自己的帳號額度：沒被要求就不要大量連續出圖`;
+}
 
 async function embedOpen(workerId) {
   const w = Number(workerId || $("#selEmbedWorker").value || 0);
@@ -1902,7 +1917,7 @@ $$("[data-act='folder']").forEach((b) => b.addEventListener("click", async () =>
   try { await api("/api/open_folder", { method: "POST" }); } catch (e) {}
 }));
 $$("[data-act='stopall']").forEach((b) => b.addEventListener("click", stopAll));
-$$("[data-act='copyAgent']").forEach((b) => b.addEventListener("click", () => copyText(AGENT_GUIDE, "用法已複製，貼給 agent 即可")));
+$$("[data-act='copyAgent']").forEach((b) => b.addEventListener("click", () => copyText(buildAgentGuide(), "用法已複製，貼給 agent 即可")));
 $("#btnOptimize").addEventListener("click", () => optimizePrompt("prompt"));
 $("#btnLibrary").addEventListener("click", openLibrary);
 $("#btnAgentSettings") && $("#btnAgentSettings").addEventListener("click", openAgentSettings);
