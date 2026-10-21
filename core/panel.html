@@ -555,7 +555,7 @@ tbody tr:last-child td{border-bottom:0}
             <span class="kpi-note" id="kpiTodayNote">&#8212;</span>
           </div>
           <div class="kpi">
-            <span class="kpi-label">剩餘配額</span>
+            <span class="kpi-label" title="Tidepool 的本機計數（初始 999，每出一張 -1），不是 ChatGPT 的官方額度；實際上限依各帳號方案">剩餘配額</span>
             <span class="kpi-value" id="kpiQuota">&#8212;</span>
             <span class="kpi-note" id="kpiQuotaNote">&#8212;</span>
           </div>
@@ -667,7 +667,7 @@ tbody tr:last-child td{border-bottom:0}
 
         <div class="kpis" id="kpisAcc">
           <div class="kpi lead">
-            <span class="kpi-label">剩餘配額</span>
+            <span class="kpi-label" title="Tidepool 的本機計數（初始 999，每出一張 -1），不是 ChatGPT 的官方額度；實際上限依各帳號方案">剩餘配額</span>
             <span class="kpi-value" id="kpiQuota2">&#8212;</span>
             <span class="kpi-note" id="kpiQuota2Note">&#8212;</span>
           </div>
@@ -1231,49 +1231,55 @@ async function pollOutputs() {
 /* ---------- 手動台：內嵌 ChatGPT ---------- */
 const embed = { worker: 0, open: false, timer: null };
 
-/* 「複製用法給 agent」：每次複製時依目前狀態現場產生（帳號數、已登入數、剩餘額度、服務網址都是即時的） */
+/* 「複製用法給 agent」：每次複製時依目前狀態現場產生，貼給 agent 後它會自己測試、回報、並把 Tidepool 建立成出圖技能 */
 function buildAgentGuide() {
   const ws = state.workers || [];
   const ok = ws.filter((w) => w.last_login_ok).length;
-  const quota = ws.reduce((n, w) => n + (Number(w.quota_left) || 0), 0);
   const B = location.origin;
-  return `# Tidepool：這台電腦上的 ChatGPT 出圖服務
-目前 ${ws.length} 個帳號、${ok} 個已登入、剩餘額度約 ${nf.format(quota)} 張。服務網址：${B}
-只在本機（127.0.0.1）可用，圖片不會經過第三方。
+  return `# 任務：接上 Tidepool、測試出圖，成功後建立成你的「出圖技能」
 
-## 出圖：三步
-1. 送出（回傳 id）
-   curl -X POST ${B}/v1/videos -H "Authorization: Bearer aipool-local" -H "Content-Type: application/json" -d '{"model":"gpt-image2-1k","prompt":"一隻柴犬在草地上奔跑，陽光","aspect_ratio":"16:9"}'
-   → {"id":"<task_id>","status":"queued"}
-2. 輪詢，每 5 秒一次，單張約 30～60 秒
-   curl ${B}/v1/tasks/<task_id> -H "Authorization: Bearer aipool-local"
-   status：queued → processing → completed 或 failed（failed 看 error_message，可重送一次）
-3. 取圖：completed 後 result.urls[0] 就是 PNG 網址，直接 GET 下載（不需要金鑰）
+Tidepool 是這台電腦上的本機出圖服務（${B}），用已登入的 ChatGPT 網頁版帳號出圖，目前 ${ws.length} 個帳號、${ok} 個已登入。
+請你自己一路做完下面五步，不要中途停下來問我；只有標【需要詢問】的地方才問。
 
-## 欄位
-- prompt：必填。中文英文都可以，寫完整的畫面描述；不要加「請幫我畫」之類的客套話
-- aspect_ratio：16:9（預設）、1:1、9:16、4:3、3:4
-- model：gpt-image2-1k（預設）、gpt-image2-2k、gpt-image2-4k
-- style：選填，留空＝不套用；可填 concept_art / realistic / cyberpunk / anime / oil_painting / product，或直接寫一段英文風格描述
-- worker_id：選填，指定某個帳號。不指定就好，系統會挑剩餘額度最多、沒在被手動使用的帳號
+## 1. 下載技能檔
+兩個檔案的內容已經替這台機器設好網址。在目前工作目錄執行（需要 Python 3；不行就試 python3 或 py）：
 
-## 並發與額度
-- 想要多張就同時送多筆，系統會自動分到不同帳號；同時進行的數量不要超過已登入的帳號數（${ok}）
-- 每個帳號有 999 張額度，用完要等重置；每筆任務產出 1 張
-- 先 GET ${B}/api/workers 看各帳號的 last_login_ok 與 quota_left；全部沒登入就先請使用者到控制台處理，不要一直重試
+python -c "import os,urllib.request as u;b='${B}/api/agent/skill/';os.makedirs('tidepool-image/scripts',exist_ok=True);u.urlretrieve(b+'SKILL.md','tidepool-image/SKILL.md');u.urlretrieve(b+'generate_image.py','tidepool-image/scripts/generate_image.py')"
 
-## 參考圖
-使用者在控制台的「資產」區放了參考圖，提示詞裡寫 @圖1、@圖2 就會自動附到 ChatGPT（編號見 GET ${B}/api/assets 的 label）。
-要自己放圖：POST ${B}/api/assets/upload {"filename":"a.png","data_b64":"<base64>"}，回傳的 assets 陣列裡看新圖的 label。
+連不上（Connection refused）代表服務沒開：請我啟動 Tidepool 後再繼續（Windows 執行 apps\\start_service.vbs，其他系統 python core/pool_service.py）。
 
-## 角色設定圖
-想要角色的四視圖設定圖，提示詞照這個結構寫會最穩：16:9 橫幅，四格等距；第一格頭到肩特寫，右邊三格正／側／背全身；均勻平光、純色背景、全部清晰；把髮色、髮型、瞳色、每件衣服逐項寫死，不要只寫「保持一致」。也可以請使用者到控制台的「角色設計」頁用選單組。
+## 2. 測試出圖（約 30～90 秒）
+python tidepool-image/scripts/generate_image.py "一顆放在木桌上的紅蘋果，柔和自然光" -o tidepool-test.png
+腳本會自己檢查服務與帳號、送出、等待、下載；進度在 stderr，stdout 最後一行是 JSON（ok / files / seconds，失敗則有 stage / code / error / hint）。
 
-## 其他
-- 在專案目錄也可以用 CLI：python core/generate.py "提示詞" -o out.png -w 3（-w 是並發張數）
-- GET ${B}/api/jobs?limit=24 工作紀錄；GET ${B}/api/outputs 圖檔清單
-- 讓控制台知道有 agent 在用：POST ${B}/api/agent/ping {"label":"你的名字"}（選用）
-- 這是使用者自己的帳號額度：沒被要求就不要大量連續出圖`;
+## 3. 向我回報測試結果（照這個格式）
+- 成功（ok 為 true）：
+  ✅ Tidepool 出圖測試成功｜耗時 {seconds} 秒｜圖片：{完整路徑}
+  並把圖片顯示給我（你能顯示圖片就顯示，不能就給完整路徑）。
+- 失敗（ok 為 false）：
+  ❌ Tidepool 出圖測試失敗｜階段 {stage}｜原因 {error}｜建議 {hint}
+  hint 裡你自己能處理的先處理一次；需要我動手的（啟動服務、重新登入帳號）就清楚說我要做什麼。
+  失敗就停在這裡，不要做第 4 步。
+
+## 4. 成功後，把它建立成你的出圖技能
+把 tidepool-image 資料夾（含 SKILL.md 與 scripts/generate_image.py）放進你的「全域」技能目錄，之後每次對話都能用：
+- Claude Code：~/.claude/skills/tidepool-image/
+- Codex：~/.codex/skills/tidepool-image/
+- 其他 agent：放進你自己的技能／自訂指令／規則機制（SKILL.md 當說明，腳本放旁邊）。不確定該放哪【需要詢問】我。
+放好後確認：檔案確實在新位置、SKILL.md 開頭有 name 與 description，並用新位置的腳本跑一次 --help 確認可執行（不要再多出一張圖耗額度）。
+
+## 5. 最後回報
+用一段話告訴我：測試結果、技能裝在哪個路徑、以後怎麼叫用（例如我說「幫我畫…」你會用 tidepool-image）、是否要重開對話才會載入技能。
+
+## 要照實說的限制（不要承諾做不到的事）
+- 解析度由 ChatGPT 決定，無法指定 2k／4k；比例只是一句文字提示，不保證剛好是那個比例
+- 控制台的「剩餘配額」只是本機計數，不是 ChatGPT 的官方額度；免費帳號很快會到上限，到了就會失敗
+- 失敗時最多重試一次，連續失敗就停下回報；這是我自己的帳號額度，我沒要求就不要大量連續出圖
+
+## 備案：沒辦法跑腳本時直接呼叫 API
+curl -X POST ${B}/v1/videos -H "Authorization: Bearer aipool-local" -H "Content-Type: application/json" -d '{"model":"gpt-image2-1k","prompt":"提示詞","aspect_ratio":"16:9"}'
+curl ${B}/v1/tasks/<id> -H "Authorization: Bearer aipool-local"
+每 5 秒查一次，status 會從 queued、processing 變成 completed 或 failed；completed 後 result.urls[0] 就是 PNG，GET 下載（不需要金鑰）。`;
 }
 
 async function embedOpen(workerId) {

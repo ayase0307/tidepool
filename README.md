@@ -31,7 +31,7 @@ Tidepool 把這份**本來就在付的額度**變成一個可以排程的本機�
 - **額度用滿** — 多個帳號各自獨立的瀏覽器 profile，任務依剩餘額度自動分配、並行出圖
 - **不用 API key、不另外付 API 費** — 走的是網頁版本身，登入、驗證碼、2FA 全部自動處理
 - **給人用，也給 agent 用** — 網頁控制台 + NewAPI 相容端點 + 一行 CLI
-- **全程本機** — 只綁 `127.0.0.1`，圖片不經過任何第三方轉手
+- **全程本機** — 服務只綁 `127.0.0.1`；圖由 ChatGPT 產生，除此之外不經過任何第三方轉手
 - **背景靜默** — 瀏覽器與 CLI 都在背景跑，不跳視窗、不搶焦點
 
 > 多帳號的取得與管理方式不在本專案範圍內，請自行尋找合適的管道。
@@ -151,7 +151,18 @@ python core/pool_service.py          # 直接跑前景
 
 ## 給 agent 用
 
-### HTTP API（NewAPI 相容）
+### 一步到位：貼給 agent，它自己測試並裝成技能
+
+控制台左下角按「**複製用法給 agent**」，把整段貼給你的 agent（Claude Code、Codex 或其他）。它會自己：
+
+1. 下載已設好網址的技能檔（`/api/agent/skill/…`）
+2. 跑一次真的出圖測試（檢查服務與帳號 → 送出 → 等待 → 下載）
+3. 用固定格式回報：✅ 成功（耗時、圖片路徑、把圖顯示給你）或 ❌ 失敗（哪一步、原因、建議）
+4. 成功後，把它建立成全域的 **tidepool-image** 技能，之後你說「幫我畫…」它就會用
+
+技能腳本只用 Python 標準函式庫，Windows / macOS / Linux 都能跑；原始檔在 [`core/agent_skill/`](core/agent_skill/)。
+
+### 直接呼叫 HTTP API（NewAPI 相容）
 
 ```bash
 curl -X POST http://127.0.0.1:7707/v1/videos \
@@ -165,23 +176,14 @@ curl http://127.0.0.1:7707/v1/tasks/<task_id> -H "Authorization: Bearer aipool-l
 ```
 
 `style` 選填：留空＝不套用，或填 `concept_art` / `realistic` / `cyberpunk` / `anime` /
-`oil_painting` / `product`，也可以直接寫一段英文描述。`aspect_ratio` 會被接成一句英文描述送進提示詞。
+`oil_painting` / `product`，也可以直接寫一段英文描述。`aspect_ratio` 會被接成一句英文描述送進提示詞，
+解析度由 ChatGPT 決定（`model` 的 2k／4k 後綴不會改變輸出）。
 
 ### CLI
 
 ```bash
 venv\Scripts\python core\generate.py "一隻柴犬在草地上奔跑，陽光" -o out.png -w 3
 ```
-
-### Skill
-
-內附 `chatgpt-image-gen` skill，agent 直接呼叫：
-
-```bash
-python <skill>/scripts/generate_image.py "提示詞" -m fpb -o out.png
-```
-
-控制台左下角的「**複製用法給 agent**」一鍵複製用法給 agent。
 
 ## Agent 設定
 
@@ -263,7 +265,8 @@ you@example.com----your-password----BASE32 2FA 密鑰
 
 ## 注意
 
-- 每個帳號的圖片額度是 **999 張**，用完要等重置
+- 控制台的「剩餘配額」是本機計數（初始 999，每出一張 -1），**不是 ChatGPT 的官方額度**。實際能出幾張取決於各帳號的方案（免費帳號通常很快到上限、要等官方重置）；到了上限出圖會失敗，換帳號或稍後再試
+- 解析度由 ChatGPT 決定；`aspect_ratio` 只是一句文字提示，不保證輸出剛好是該比例
 - 服務與所有 API 都只綁 `127.0.0.1`；`/v1/*` 內建的本機金鑰請自行在程式裡改掉再對外暴露
 - `secrets/`、`data/`、`output/` 不會進版本控制（帳號、角色、產出都在本機）
 

@@ -68,7 +68,8 @@ def main() -> int:
                     choices=list(STYLE_PROMPTS.keys()))
     ap.add_argument("-r", "--ratio", default="16:9",
                     choices=list(RATIO_PROMPTS.keys()))
-    ap.add_argument("--res", default="1k", choices=["1k", "2k", "4k"])
+    ap.add_argument("--res", default="1k", choices=["1k", "2k", "4k"],
+                    help="只會被記錄；實際輸出解析度由 ChatGPT 決定，不受這個值影響")
     ap.add_argument("-w", "--worker", type=int, default=None, help="pin to a specific worker id")
     ap.add_argument("--raw-prompt", action="store_true", help="skip wrapper/optimizer")
     ap.add_argument("--timeout", type=int, default=300)

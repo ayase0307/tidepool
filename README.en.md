@@ -31,7 +31,7 @@ Tidepool turns **the quota you already pay for** into a schedulable local servic
 - **Spend the whole quota**: each account runs in its own isolated browser profile; jobs are spread by remaining quota and run in parallel
 - **No API key, no API bill**: it drives the web app itself; login, Turnstile and 2FA are handled for you
 - **For people and agents**: web console, NewAPI-compatible endpoints, a one-line CLI
-- **Local only**: bound to `127.0.0.1`; images never pass through a third party
+- **Local only**: the service binds to `127.0.0.1`; images come from ChatGPT and pass through no other third party
 - **Silent**: browsers and CLIs run in the background, no windows, no focus stealing
 
 > How you obtain and manage multiple accounts is out of scope. Follow ChatGPT's terms and use only your own accounts.
@@ -118,6 +118,19 @@ python core/pool_service.py
 
 ## For agents
 
+### One step: paste it to an agent, it tests and installs itself as a skill
+
+Press **Copy usage for agent** at the bottom-left of the console and paste it to your agent (Claude Code, Codex, ...). It will:
+
+1. Download the skill files (already pointed at your address, `/api/agent/skill/...`)
+2. Run a real generation test (check service and accounts, submit, wait, download)
+3. Report in a fixed format: ✅ success (time, image path, shows you the image) or ❌ failure (which step, why, what to do)
+4. On success, install a global **tidepool-image** skill, so "draw me ..." works from then on
+
+The skill script uses only the Python standard library (Windows / macOS / Linux); sources are in [`core/agent_skill/`](core/agent_skill/).
+
+### Direct HTTP API (NewAPI-compatible)
+
 ```bash
 curl -X POST http://127.0.0.1:7707/v1/videos \
   -H "Authorization: Bearer aipool-local" -H "Content-Type: application/json" \
@@ -128,8 +141,8 @@ curl http://127.0.0.1:7707/v1/tasks/<task_id> -H "Authorization: Bearer aipool-l
 # -> {"status":"completed","result":{"urls":["http://127.0.0.1:7707/api/outputs/file/xxx.png"]}}
 ```
 
-CLI: `venv\Scripts\python core\generate.py "prompt" -o out.png -w 3`. A bundled `chatgpt-image-gen` skill wraps the same API;
-the console's "copy usage for agent" button copies the instructions.
+Resolution is decided by ChatGPT (a `2k`/`4k` suffix on `model` changes nothing); `aspect_ratio` is only a text hint.
+CLI: `venv\Scripts\python core\generate.py "prompt" -o out.png -w 3`.
 
 ## Agent settings
 
@@ -157,7 +170,8 @@ Generation drives the page directly and fetches the image in-page as base64; win
 
 ## Notes
 
-- Each account has **999 images** of quota; wait for the reset when it runs out
+- The console's "remaining quota" is a **local counter** (starts at 999, minus one per image), **not ChatGPT's official number**. What you can actually generate depends on each account's plan (free accounts usually hit the limit quickly and must wait for the official reset); at the limit, jobs fail, so switch accounts or retry later
+- Resolution is decided by ChatGPT; `aspect_ratio` is only a text hint and the output is not guaranteed to match it
 - Everything binds to `127.0.0.1`; change the built-in `/v1/*` local keys before exposing it
 - `secrets/`, `data/` and `output/` are git-ignored
 

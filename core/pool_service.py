@@ -1382,9 +1382,7 @@ async def v1_videos(req: VideosReq, request: Request):
     _auth_v1(request)
     if not req.prompt.strip():
         raise HTTPException(400, "prompt is empty")
-    res = req.model.replace("gpt-image2-", "").strip() or "1k"
-    if res not in ("1k", "2k", "4k"):
-        res = "1k"
+    res = "1k"  # 解析度由 ChatGPT 決定；model 的 2k/4k 後綴只是 NewAPI 相容，不會改變輸出
     ratio = req.aspect_ratio if req.aspect_ratio in ("16:9", "1:1", "9:16", "4:3", "3:4") else "16:9"
     job_id = await submit_job(req.prompt, req.worker_id, req.style, ratio, res, wrap=True)
     return {"id": job_id, "task_id": job_id, "object": "video", "status": "queued",
@@ -1393,6 +1391,7 @@ async def v1_videos(req: VideosReq, request: Request):
 
 @admin_api.get("/v1/tasks/{task_id}")
 async def v1_task(task_id: str, request: Request):
+    base = str(request.base_url).rstrip("/")
     _auth_v1(request)
     rows = db_query("SELECT * FROM jobs WHERE job_id=?", (task_id,))
     if not rows:
@@ -1408,20 +1407,32 @@ async def v1_task(task_id: str, request: Request):
     }
     if status == "completed":
         paths = json.loads(j.get("image_paths") or "[]")
-        urls = [f"http://127.0.0.1:7707/api/outputs/file/{Path(p).name}" for p in paths]
+        urls = [f"{base}/api/outputs/file/{Path(p).name}" for p in paths]
         out["result"] = {
             "type": "gpt_workflow_image",
             "workflow_kind": "image",
             "conversation_id": (j.get("conversation_url") or "").rstrip("/").split("/")[-1],
             "urls": urls,
             "image_url": urls[0] if urls else "",
-            "model": f"gpt-image2-{j.get('res') or '1k'}",
-            "resolution": j.get("res") or "1k",
+            "model": "gpt-image2-1k",
+            "resolution": _png_size(paths[0]) if paths else "",   # 實際輸出尺寸；不是請求的值
             "aspect_ratio": j.get("ratio") or "16:9",
             "size": _png_size(paths[0]) if paths else "",
         }
     return out
 
+
+
+# 給 agent 的「出圖技能」檔案：由服務現場提供（網址會換成呼叫者看到的位址），agent 照檔名存進自己的技能目錄就好
+AGENT_SKILL_DIR = Path(__file__).resolve().parent / "agent_skill"
+
+
+@admin_api.get("/api/agent/skill/{name}")
+async def agent_skill_file(name: str, request: Request):
+    if name not in ("SKILL.md", "generate_image.py"):
+        raise HTTPException(404, "not found")
+    text = (AGENT_SKILL_DIR / name).read_text(encoding="utf-8").replace("__BASE_URL__", str(request.base_url).rstrip("/"))
+    return Response(text, media_type="text/plain; charset=utf-8")
 
 
 # ---------------------------------------------------------------------------
